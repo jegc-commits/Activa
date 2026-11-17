@@ -47,8 +47,8 @@ class PantallaInicioAdmin extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(c:\Users\Laura\Downloads\README.md
-                child: Column(
+              const Expanded(
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
