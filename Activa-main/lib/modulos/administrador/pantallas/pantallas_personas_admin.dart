@@ -7,7 +7,7 @@ import '../../../nucleo/utilidades/formateadores.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../nucleo/componentes/estructura_subpantalla.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
+import '../../../datos/constantes_app.dart';
 import '../../../nucleo/componentes/avisos.dart';
 
 import '../../../nucleo/componentes/dialogo_confirmar.dart';
@@ -22,7 +22,7 @@ class PantallaAlumnosAdmin extends StatefulWidget {
 
 class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
   final _search = TextEditingController();
-  int _f = 0; // 0 todos, 1 con 60 h, 2 en proceso, 3 sin actividad
+  int _f = 0; // 0 todos, 1 c
 
   @override
   void dispose() {
@@ -81,7 +81,7 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
                   'Todos',
                   'Con 60 h',
                   'En proceso',
-                  'Sin actividad',
+                  'Sin Taller',
                 ].indexed) ...[
                   ChoiceChip(
                     label: Text(n),
@@ -287,7 +287,9 @@ class _EstadoPantallaNuevoInstructor extends State<PantallaNuevoInstructor> {
     final m = capitalizar(_mat.text);
     if (s.existeInstructor(n, p, m)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        avisoSnack(content: const Text('Error: ya existe un instructor con ese nombre')),
+        avisoSnack(
+          content: const Text('Error: ya existe un instructor con ese nombre'),
+        ),
       );
       return;
     }
@@ -336,7 +338,9 @@ class _EstadoPantallaNuevoInstructor extends State<PantallaNuevoInstructor> {
             textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.next,
             inputFormatters: formatoNombre(),
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.person_outline)),
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.person_outline),
+            ),
             validator: (v) => validarNombre(v, campo: 'El apellido'),
           ),
           _label('Apellido materno (opcional)'),
@@ -345,8 +349,11 @@ class _EstadoPantallaNuevoInstructor extends State<PantallaNuevoInstructor> {
             textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.next,
             inputFormatters: formatoNombre(),
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.person_outline)),
-            validator: (v) => validarNombre(v, campo: 'El apellido', obligatorio: false),
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.person_outline),
+            ),
+            validator: (v) =>
+                validarNombre(v, campo: 'El apellido', obligatorio: false),
           ),
           _label('Correo institucional'),
           TextFormField(
@@ -367,10 +374,14 @@ class _EstadoPantallaNuevoInstructor extends State<PantallaNuevoInstructor> {
             textCapitalization: TextCapitalization.sentences,
             inputFormatters: formatoNombre(),
             decoration: const InputDecoration(prefixIcon: Icon(Icons.sports)),
-            validator: (v) => validarNombre(v, campo: 'La especialidad', min: 3),
+            validator: (v) =>
+                validarNombre(v, campo: 'La especialidad', min: 3),
           ),
           const SizedBox(height: 24),
-          FilledButton(onPressed: _save, child: const Text('Guardar instructor')),
+          FilledButton(
+            onPressed: _save,
+            child: const Text('Guardar instructor'),
+          ),
         ],
       ),
     ),

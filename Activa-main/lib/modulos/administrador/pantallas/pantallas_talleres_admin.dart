@@ -36,14 +36,14 @@ class _Etiqueta extends StatelessWidget {
 }
 
 // ───────────────── Lista ─────────────────
-class PantallaActividadesAdmin extends StatefulWidget {
-  const PantallaActividadesAdmin({super.key});
+class PantallaTalleresAdmin extends StatefulWidget {
+  const PantallaTalleresAdmin({super.key});
   @override
-  State<PantallaActividadesAdmin> createState() =>
+  State<PantallaTalleresAdmin> createState() =>
       _EstadoPantallaActividadesAdmin();
 }
 
-class _EstadoPantallaActividadesAdmin extends State<PantallaActividadesAdmin> {
+class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
   final _search = TextEditingController();
   int _f = 0; // 0 todas, 1 activas, 2 llenas, 3 inactivas
 
@@ -70,16 +70,17 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaActividadesAdmin> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/admin/actividad/nuevo'),
+        onPressed: () => context.push('/admin/taller'),
         icon: const Icon(Icons.add),
-        label: const Text('Nueva actividad'),
+        label: const Text('Nuevo taller'),
       ),
+
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 90),
           children: [
             const Text(
-              'Actividades',
+              'Talleres',
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w800,
@@ -87,7 +88,7 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaActividadesAdmin> {
               ),
             ),
             Text(
-              '${s.talleres.length} actividades registradas',
+              '${s.talleres.length} talleres registradas',
               style: const TextStyle(color: Colors.black54, fontSize: 12),
             ),
             const SizedBox(height: 12),
@@ -96,7 +97,7 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaActividadesAdmin> {
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'Buscar actividad',
+                hintText: 'Buscar Taller',
               ),
             ),
             const SizedBox(height: 10),
@@ -124,13 +125,13 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaActividadesAdmin> {
             if (lista.isEmpty)
               const Padding(
                 padding: EdgeInsets.only(top: 30),
-                child: Center(child: Text('No hay actividades')),
+                child: Center(child: Text('No hay talleres')),
               ),
             for (final t in lista)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: TarjetaApp(
-                  onTap: () => context.push('/admin/actividad/${t.id}/editar'),
+                  onTap: () => context.push('/taller/${t.id}'),
                   child: Row(
                     children: [
                       MiniaturaTaller(t, size: 56),
@@ -386,7 +387,7 @@ class _EstadoPantallaFormularioActividad
 
     final ok = await confirmarAccion(
       context,
-      titulo: base == null ? '¿Crear actividad?' : '¿Guardar cambios?',
+      titulo: base == null ? '¿Crear taller?' : '¿Guardar cambios?',
       mensaje: base == null
           ? 'Se publicará ${t.nombre} para que los alumnos puedan inscribirse.'
           : 'Se actualizará ${t.nombre}.',
@@ -400,7 +401,7 @@ class _EstadoPantallaFormularioActividad
     context.pop();
     msg.showSnackBar(
       avisoSnack(
-        content: Text(base == null ? 'Actividad creada' : 'Cambios guardados'),
+        content: Text(base == null ? 'taller creado' : 'Cambios guardados'),
       ),
     );
   }
@@ -415,7 +416,7 @@ class _EstadoPantallaFormularioActividad
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _label('Foto de la actividad'),
+        _label('Foto de la taller'),
         GestureDetector(
           onTap: _elegirFoto,
           child: Container(
@@ -465,7 +466,7 @@ class _EstadoPantallaFormularioActividad
                   ),
           ),
         ),
-        _label('Nombre de la actividad'),
+        _label('Nombre de el taller'),
         TextFormField(
           controller: _nombre,
           textCapitalization: TextCapitalization.sentences,
@@ -492,7 +493,7 @@ class _EstadoPantallaFormularioActividad
           decoration: const InputDecoration(prefixIcon: Icon(Icons.person)),
           hint: const Text('Selecciona un instructor'),
           items: [
-                        // los instructores desactivados ya no se pueden elegir
+            // los instructores desactivados ya no se pueden elegir
             for (final i in s.instructores.where(
               (x) => x.activo || x.id == _instId,
             ))
@@ -604,7 +605,7 @@ class _EstadoPantallaFormularioActividad
         FilledButton.icon(
           onPressed: _save,
           icon: const Icon(Icons.check),
-          label: const Text('Guardar actividad'),
+          label: const Text('Guardar taller'),
         ),
         Center(
           child: TextButton(
@@ -620,7 +621,7 @@ class _EstadoPantallaFormularioActividad
   Widget build(BuildContext context) {
     final s = context.watch<EstadoApp>();
     return EstructuraSubpantalla(
-      title: _edit == null ? 'Nueva actividad' : 'Editar actividad',
+      title: _edit == null ? 'Nuevo taller' : 'Editar taller',
       fallback: '/admin/actividades',
       child: ListView(
         padding: const EdgeInsets.all(20),

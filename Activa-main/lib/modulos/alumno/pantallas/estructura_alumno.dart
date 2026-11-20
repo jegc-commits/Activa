@@ -39,7 +39,7 @@ class EstructuraAlumno extends StatelessWidget {
           NavigationDestination(
             icon: const Icon(Icons.calendar_today_outlined),
             selectedIcon: const Icon(Icons.calendar_today),
-            label: context.tr('nav.actividades'),
+            label: context.tr('nav.talleres'),
           ),
           NavigationDestination(
             icon: campana(Icons.notifications_outlined),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
+import '../../../datos/constantes_app.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../nucleo/tema/tema_app.dart';
 

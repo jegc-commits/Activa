@@ -37,7 +37,7 @@ class Taller {
   final List<Horario> horarios;
   final List<String> aprendizajes;
   final int inscritos; // en backend real se calcula contando inscripciones
-  final Uint8List? foto; // foto elegida al crear la actividad
+  final Uint8List? foto;
 
   const Taller({
     required this.id,
@@ -112,19 +112,4 @@ class Taller {
     }
     return base;
   }
-}
-
-class Actividad {
-  final int id;
-  final int tallerId;
-  final String nombre;
-  final DateTime fecha;
-  final int horas;
-  const Actividad({
-    required this.id,
-    required this.tallerId,
-    required this.nombre,
-    required this.fecha,
-    required this.horas,
-  });
 }

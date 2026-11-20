@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../modelos/taller.dart';
 
 const _navy = Color(0xFF0A3175);
@@ -43,7 +44,7 @@ class _TarjetaActividadState extends State<TarjetaActividad> {
           borderRadius: radio,
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: widget.onTap ?? () => context.push('/actividad/${t.id}'),
+            onTap: widget.onTap ?? () => context.push('/taller/${t.id}'),
             onHighlightChanged: (v) => setState(() => _presionada = v),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
@@ -54,8 +55,11 @@ class _TarjetaActividadState extends State<TarjetaActividad> {
                     children: [
                       _Ilustracion(t, color),
                       const Spacer(),
-                      const Icon(Icons.chevron_right_rounded,
-                          color: _navy, size: 24),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: _navy,
+                        size: 24,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -120,27 +124,27 @@ class _Dato extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(icono, size: 13, color: color),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(top: 1),
+        child: Icon(icono, size: 13, color: color),
+      ),
+      const SizedBox(width: 5),
+      Expanded(
+        child: Text(
+          texto,
+          maxLines: lineas,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 10.5,
+            height: 1.25,
+            color: Color(0xFF44546F),
           ),
-          const SizedBox(width: 5),
-          Expanded(
-            child: Text(
-              texto,
-              maxLines: lineas,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10.5,
-                height: 1.25,
-                color: Color(0xFF44546F),
-              ),
-            ),
-          ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 }
 
 /// Dibujo de la actividad: si existe una imagen con el nombre de la actividad
@@ -167,9 +171,8 @@ class _Ilustracion extends StatelessWidget {
         child: Image.asset(
           'assets/images/talleres/$slug.png',
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Center(
-            child: Icon(_iconoPara(taller), color: color, size: 28),
-          ),
+          errorBuilder: (_, __, ___) =>
+              Center(child: Icon(_iconoPara(taller), color: color, size: 28)),
         ),
       ),
     );

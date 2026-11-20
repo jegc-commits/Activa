@@ -10,7 +10,7 @@ import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../nucleo/componentes/tarjeta_estadistica.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
+import '../../../datos/constantes_app.dart';
 
 class PantallaInicioAdmin extends StatelessWidget {
   const PantallaInicioAdmin({super.key});
@@ -49,6 +49,8 @@ class PantallaInicioAdmin extends StatelessWidget {
             children: [
               const Expanded(
               child: Column(
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -60,7 +62,7 @@ class PantallaInicioAdmin extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Ciclo $periodoSimulado',
+                      'Ciclo $periodoActual',
                       style: TextStyle(color: Colors.black54, fontSize: 12),
                     ),
                   ],
@@ -84,7 +86,7 @@ class PantallaInicioAdmin extends StatelessWidget {
                 child: TarjetaEstadistica(
                   Icons.star,
                   '${s.talleres.length}',
-                  'Actividades',
+                  'Talleres',
                 ),
               ),
             ],
@@ -114,8 +116,8 @@ class PantallaInicioAdmin extends StatelessWidget {
             children: [
               _action(
                 Icons.add,
-                'Nueva actividad',
-                () => context.push('/admin/actividad/nuevo'),
+                'Nueva Taller',
+                () => context.push('/admin/taller/nuevo'),
               ),
               const SizedBox(width: 10),
               _action(
@@ -143,7 +145,7 @@ class PantallaInicioAdmin extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             TarjetaApp(
-              onTap: () => context.go('/admin/actividades'),
+              onTap: () => context.go('/admin/talleres'),
               child: Row(
                 children: [
                   CircleAvatar(
@@ -156,7 +158,7 @@ class PantallaInicioAdmin extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Actividades casi llenas',
+                          'Taller casi llenas',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Text(
@@ -176,7 +178,7 @@ class PantallaInicioAdmin extends StatelessWidget {
           ],
           const SizedBox(height: 20),
           const Text(
-            'Actividades activas',
+            'Talleres activos',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -188,7 +190,7 @@ class PantallaInicioAdmin extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: TarjetaApp(
-                onTap: () => context.push('/admin/actividad/${t.id}/editar'),
+                onTap: () => context.push('/admin/taller/${t.id}/editar'),
                 child: Row(
                   children: [
                     MiniaturaTaller(t, size: 46),

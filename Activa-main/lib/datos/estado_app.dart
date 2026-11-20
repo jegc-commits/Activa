@@ -1,34 +1,130 @@
+import 'dart:async';
+
 import 'package:activa/modelos/taller.dart';
 import 'package:flutter/foundation.dart';
 
 import '../modelos/enums.dart';
 import '../modelos/inscripcion.dart';
-import 'simulados/datos_simulados.dart';
 import '../modelos/categoria.dart';
 import '../nucleo/utilidades/formateadores.dart';
 import '../modelos/usuario.dart';
 import '../modelos/comunicacion.dart';
-import 'simulados/datos_comunicacion.dart';
 import 'almacen_cuentas.dart';
-
+import 'bd/base_datos.dart';
+import 'bd/repositorio_activa.dart';
 
 class EstadoApp extends ChangeNotifier {
-  EstadoApp([this._almacen]) {
-    _cargarInstructoresGuardados();
-  }
+  EstadoApp([this._almacen]);
 
   /// Archivo JSON con las cuentas (alumnos registrados e instructores del admin)
   final AlmacenCuentas? _almacen;
 
-  final List<Taller> _talleres = List.of(talleresSimulado);
-  final List<Inscripcion> _inscripciones = List.of(inscripcionesSimulado);
+  RepositorioActiva? _repo;
+
+  /// Lee todos los datos desde SQLite y deja la app lista para usarse.
+  Future<void> cargar() async {
+    final repo = RepositorioActiva(await BaseDatos.instancia.abrir());
+    _repo = repo;
+    final datos = await repo.cargarTodo();
+
+    _categorias
+      ..clear()
+      ..addAll(datos.categorias);
+    _talleres
+      ..clear()
+      ..addAll(datos.talleres);
+    _inscripciones
+      ..clear()
+      ..addAll(datos.inscripciones);
+    _favoritos
+      ..clear()
+      ..addAll(datos.favoritos);
+    _horas
+      ..clear()
+      ..addAll(datos.horasPorFolio);
+    _horasOtros
+      ..clear()
+      ..addAll(datos.horasAlumnos);
+    _avisos
+      ..clear()
+      ..addAll(datos.avisos);
+    _avisosLeidos
+      ..clear()
+      ..addAll(datos.avisosLeidos);
+    _avisosArchivados
+      ..clear()
+      ..addAll(datos.avisosArchivados);
+    _encuestas
+      ..clear()
+      ..addAll(datos.encuestas);
+    _solicitudes
+      ..clear()
+      ..addAll(datos.solicitudes);
+    _bajas
+      ..clear()
+      ..addAll(datos.bajas);
+    _reportes
+      ..clear()
+      ..addAll(datos.reportes);
+    _alumnos
+      ..clear()
+      ..addAll(datos.alumnos);
+    _instructores
+      ..clear()
+      ..addAll(datos.instructores);
+    _roster
+      ..clear()
+      ..addAll({for (final e in datos.roster.entries) e.key: List.of(e.value)});
+    _chats
+      ..clear()
+      ..addAll({for (final e in datos.chats.entries) e.key: List.of(e.value)});
+    _chatsAnclados
+      ..clear()
+      ..addAll(datos.chatsAnclados);
+    _fondosChat
+      ..clear()
+      ..addAll(datos.fondosChat);
+    _asistencias
+      ..clear()
+      ..addAll(await repo.cargarAsistencias());
+
+    _seq = datos.contadores['folio'] ?? _seq;
+    _tallerSeq = datos.contadores['taller'] ?? _tallerSeq;
+    _instSeq = datos.contadores['instructor'] ?? _instSeq;
+    _avisoSeq = datos.contadores['aviso'] ?? _avisoSeq;
+    _msgSeq = datos.contadores['mensaje'] ?? _msgSeq;
+    _encSeq = datos.contadores['encuesta'] ?? _encSeq;
+    _solSeq = datos.contadores['solicitud'] ?? _solSeq;
+
+    notifyListeners();
+  }
+
+  /// Lanza la escritura en SQLite sin bloquear la interfaz.
+  void _guardar(Future<void> Function(RepositorioActiva repo) accion) {
+    final repo = _repo;
+    if (repo == null) return;
+    unawaited(
+      accion(repo).catchError((Object e, StackTrace _) {
+        debugPrint('ACTIVA: no se pudo guardar en SQLite: $e');
+      }),
+    );
+  }
+
+  final List<Taller> _talleres = [];
+  final List<Inscripcion> _inscripciones = [];
   final Set<int> _favoritos = {};
-  int _seq = 386; // siguiente consecutivo de folio
+  int _seq = 1; // siguiente consecutivo de folio
 
   List<Taller> get talleres => List.unmodifiable(_talleres);
   List<Inscripcion> get inscripciones => List.unmodifiable(_inscripciones);
 
   Taller tallerPorId(int id) => _talleres.firstWhere((t) => t.id == id);
+
+  // 👇 NUEVO MÉTODO DE AYUDA: Obtiene el nombre del taller o "Aviso general"
+  String nombreDeTaller(int? tallerId) {
+    if (tallerId == null) return 'Aviso general';
+    return tallerPorId(tallerId).nombre;
+  }
 
   bool estaInscrito(int tallerId) => _inscripciones.any(
     (i) =>
@@ -48,6 +144,7 @@ class EstadoApp extends ChangeNotifier {
 
   void toggleFavorito(int id) {
     _favoritos.contains(id) ? _favoritos.remove(id) : _favoritos.add(id);
+    _guardar((r) => r.guardarFavorito(id, _favoritos.contains(id)));
     notifyListeners();
   }
 
@@ -66,6 +163,11 @@ class EstadoApp extends ChangeNotifier {
       fechaInscripcion: DateTime.now(),
     );
     _inscripciones.add(ins);
+    _guardar((r) async {
+      await r.guardarTaller(actualizado);
+      await r.guardarInscripcion(ins);
+      await r.guardarContador('folio', _seq);
+    });
     notifyListeners(); // avisa a todas las pantallas que escuchan
     return ins;
   }
@@ -90,19 +192,44 @@ class EstadoApp extends ChangeNotifier {
     return '$prefijo-2026-${(_seq++).toString().padLeft(4, '0')}';
   }
 
-  final List<Categoria> _categorias = List.of(categoriasSimulado);
+  final List<Categoria> _categorias = [];
 
   List<Categoria> get categorias =>
       List.unmodifiable(_categorias.where((c) => c.activa));
 
   void agregarCategoria(Categoria c) {
     _categorias.add(c);
+    _guardar((r) => r.guardarCategoria(c));
     notifyListeners();
   }
 
-  Alumno alumno = alumnoSimulado;
-  final Map<String, int> _horas = Map.of(horasPorFolioSimulado);
-  final List<Aviso> _avisos = List.of(avisosSimulado);
+  static const Alumno alumnoVacio = Alumno(
+    id: 0,
+    nombre: '',
+    apellidoPaterno: '',
+    correo: '',
+    numeroControl: '',
+    grupo: '',
+    carrera: '',
+  );
+  static const Instructor instructorVacio = Instructor(
+    id: 0,
+    nombre: '',
+    apellidoPaterno: '',
+    correo: '',
+    especialidad: '',
+  );
+  static const Administrador adminVacio = Administrador(
+    id: 0,
+    nombre: '',
+    apellidoPaterno: '',
+    correo: '',
+    cargo: '',
+  );
+
+  Alumno alumno = alumnoVacio;
+  final Map<String, int> _horas = {};
+  final List<Aviso> _avisos = [];
 
   List<Aviso> get avisos => List.unmodifiable(_avisos);
 
@@ -119,7 +246,7 @@ class EstadoApp extends ChangeNotifier {
       .fold(0, (a, i) => a + (_horas[i.folio] ?? 0));
   int horasDe(String folio) => _horas[folio] ?? 0;
 
-   void cancelar(String folio) {
+  void cancelar(String folio) {
     final idx = _inscripciones.indexWhere((i) => i.folio == folio);
     if (idx < 0) return;
     final ins = _inscripciones[idx];
@@ -130,6 +257,11 @@ class EstadoApp extends ChangeNotifier {
     _talleres[ti] = _talleres[ti].copyWith(
       inscritos: _talleres[ti].inscritos - 1,
     );
+    _guardar((r) async {
+      await r.actualizarInscripcion(_inscripciones[idx]);
+      await r.guardarTaller(_talleres[ti]);
+      await r.guardarBaja(ins.taller.id, _bajas[ins.taller.id] ?? 0);
+    });
     notifyListeners(); // se libera el lugar en Explorar
   }
 
@@ -149,7 +281,7 @@ class EstadoApp extends ChangeNotifier {
             apellidoMaterno: '',
             telefono: telefono.trim(),
           );
-    // si la alumna entró con una cuenta guardada, el cambio también va al JSON
+    // si la alumna entró con una cuenta guardada, el cambio también va a SQLite
     final c = _almacen?.porId(alumno.id);
     if (c != null && c.rol == Rol.alumno) {
       c.nombre = alumno.nombre;
@@ -158,11 +290,16 @@ class EstadoApp extends ChangeNotifier {
       c.telefono = alumno.telefono ?? '';
       _almacen!.guardar();
     }
+    final idx = _alumnos.indexWhere(
+      (a) => a.numeroControl == alumno.numeroControl,
+    );
+    if (idx >= 0) _alumnos[idx] = alumno;
+    _guardar((r) => r.guardarAlumno(alumno));
     notifyListeners();
   }
 
-  Instructor instructor = instructorSimulado;
-  final Map<int, List<Alumno>> _roster = {1: List.of(companerosSimulado)};
+  Instructor instructor = instructorVacio;
+  final Map<int, List<Alumno>> _roster = {};
   // clave "tallerId|yyyy-mm-dd" -> {numControl: presente}
   final Map<String, Map<String, bool>> _asistencias = {};
 
@@ -174,8 +311,25 @@ class EstadoApp extends ChangeNotifier {
       _talleres.where((t) => t.instructor.id == instructor.id).toList();
 
   List<Alumno> alumnosDe(int tallerId) {
-    final lista = List<Alumno>.of(_roster[tallerId] ?? const []);
-    if (estaInscrito(tallerId)) lista.insert(0, alumno);
+    final vistos = <String>{};
+    final lista = <Alumno>[];
+
+    void agregar(Alumno a) {
+      if (a.numeroControl.isEmpty) return;
+      if (vistos.add(a.numeroControl)) lista.add(a);
+    }
+
+    // roster: alumnos que el instructor ya tenía registrados
+    for (final a in _roster[tallerId] ?? const <Alumno>[]) {
+      agregar(a);
+    }
+    // inscripciones activas: la fuente principal del grupo
+    for (final i in _inscripciones) {
+      if (i.taller.id == tallerId && i.estado == EstadoInscripcion.activa) {
+        agregar(i.alumno);
+      }
+    }
+    if (estaInscrito(tallerId)) agregar(alumno);
     return lista;
   }
 
@@ -186,74 +340,179 @@ class EstadoApp extends ChangeNotifier {
 
   void guardarAsistencia(Taller t, DateTime f, Map<String, bool> marcas) {
     final k = _key(t.id, f);
-    final antes = _asistencias[k] ?? {};
-    final ins = _inscripciones
-        .where(
-          (i) => i.taller.id == t.id && i.estado == EstadoInscripcion.activa,
-        )
-        .firstOrNull;
-    if (ins != null) {
-      final nc = alumno.numeroControl;
-      final eraP = antes[nc] == true;
-      final esP = marcas[nc] == true;
+    final antes = _asistencias[k] ?? const <String, bool>{};
+
+    // Calcula las horas de cada alumno marcado en esta lista.
+    final cambios = <String, int>{};
+    for (final e in marcas.entries) {
+      final ins = _inscripciones
+          .where(
+            (i) =>
+                i.taller.id == t.id &&
+                i.estado == EstadoInscripcion.activa &&
+                i.alumno.numeroControl == e.key,
+          )
+          .firstOrNull;
+      if (ins == null) continue;
+
+      final eraP = antes[e.key] == true;
+      final esP = e.value;
       final actual = _horas[ins.folio] ?? 0;
-      if (!eraP && esP) _horas[ins.folio] = actual + t.horasPorSesion;
-      if (eraP && !esP) {
+      if (!eraP && esP) {
+        _horas[ins.folio] = actual + t.horasPorSesion;
+      } else if (eraP && !esP) {
         final nuevo = actual - t.horasPorSesion;
         _horas[ins.folio] = nuevo < 0 ? 0 : nuevo;
       }
+      if (_horas[ins.folio] != actual) {
+        cambios[ins.folio] = _horas[ins.folio] ?? 0;
+      }
     }
+
     _asistencias[k] = Map.of(marcas);
+
+    // Totales por alumno (todas sus inscripciones) para la tabla alumnos.
+    final totales = <String, int>{};
+    for (final ins in _inscripciones) {
+      totales.update(
+        ins.alumno.numeroControl,
+        (v) => v + (_horas[ins.folio] ?? 0),
+        ifAbsent: () => _horas[ins.folio] ?? 0,
+      );
+    }
+
+    _guardar((r) async {
+      for (final c in cambios.entries) {
+        await r.guardarHorasFolio(c.key, c.value);
+      }
+      for (final e in totales.entries) {
+        await r.guardarHorasAlumno(e.key, e.value);
+      }
+      await r.guardarAsistencia(t.id, fechaIso(f), marcas);
+    });
+
+    _horasOtros
+      ..clear()
+      ..addAll(totales);
     notifyListeners();
+  }
+
+  /// Asistencias registradas del alumno [numeroControl] en un taller.
+  ({int asistidas, int total}) asistenciaDeAlumno(
+    int tallerId,
+    String numeroControl,
+  ) {
+    var asistidas = 0;
+    var total = 0;
+    for (final e in _asistencias.entries) {
+      if (int.tryParse(e.key.split('|').first) != tallerId) continue;
+      final presente = e.value[numeroControl];
+      if (presente == null) continue;
+      total++;
+      if (presente) asistidas++;
+    }
+    return (asistidas: asistidas, total: total);
+  }
+
+  /// Porcentaje de asistencia del alumno actual (0 si no hay listas).
+  int get porcentajeAsistencia {
+    final nc = alumno.numeroControl;
+    if (nc.isEmpty) return 0;
+    var asistidas = 0;
+    var total = 0;
+    for (final e in _asistencias.entries) {
+      final presente = e.value[nc];
+      if (presente == null) continue;
+      total++;
+      if (presente) asistidas++;
+    }
+    return total == 0 ? 0 : (asistidas * 100 / total).round();
+  }
+
+  /// Horas acumuladas por el alumno actual durante el mes en curso.
+  int get horasDelMes {
+    final nc = alumno.numeroControl;
+    if (nc.isEmpty) return 0;
+    final ahora = DateTime.now();
+    var total = 0;
+    for (final e in _asistencias.entries) {
+      if (e.value[nc] != true) continue;
+      final partes = e.key.split('|');
+      final tallerId = int.tryParse(partes.first);
+      final fecha = partes.length > 1 ? DateTime.tryParse(partes.last) : null;
+      if (tallerId == null || fecha == null) continue;
+      if (fecha.year != ahora.year || fecha.month != ahora.month) continue;
+      final taller = _talleres.where((t) => t.id == tallerId).firstOrNull;
+      if (taller != null) total += taller.horasPorSesion;
+    }
+    return total;
+  }
+
+  /// Porcentaje de asistencia de todos los grupos del instructor actual.
+  int get porcentajeAsistenciaInstructor {
+    final ids = misGrupos.map((t) => t.id).toSet();
+    var asistidas = 0;
+    var total = 0;
+    for (final e in _asistencias.entries) {
+      final tallerId = int.tryParse(e.key.split('|').first);
+      if (tallerId == null || !ids.contains(tallerId)) continue;
+      for (final presente in e.value.values) {
+        total++;
+        if (presente) asistidas++;
+      }
+    }
+    return total == 0 ? 0 : (asistidas * 100 / total).round();
   }
 
   List<Aviso> get avisosPublicados {
     final ids = misGrupos.map((t) => t.id).toSet();
-    return _avisos.where((a) => ids.contains(a.tallerId)).toList();
+    return _avisos
+        .where((a) => a.tallerId != null && ids.contains(a.tallerId))
+        .toList();
   }
 
+  // 👇 MODIFICADO: Acepta tallerId nulo
   void publicarAviso({
-    required int tallerId,
+    required int? tallerId,
     required TipoAviso tipo,
     required String titulo,
     required String mensaje,
   }) {
-    _avisos.insert(
-      0,
-      Aviso(
-        id: _avisoSeq++,        tallerId: tallerId,
-        tipo: tipo,
-        titulo: titulo.trim(),
-        mensaje: mensaje.trim(),
-        fecha: DateTime.now(),
-      ),
+    final aviso = Aviso(
+      id: _avisoSeq++,
+      tallerId: tallerId,
+      tipo: tipo,
+      titulo: titulo.trim(),
+      mensaje: mensaje.trim(),
+      fecha: DateTime.now(),
     );
+    _avisos.insert(0, aviso);
+    _guardar((r) async {
+      await r.guardarAviso(aviso);
+      await r.guardarContador('aviso', _avisoSeq);
+    });
     notifyListeners();
   }
 
-  Administrador admin = adminSimulado;
-  int _tallerSeq = 7;
-  int _instSeq = 20;
-  final Map<String, int> _horasOtros = Map.of(horasAlumnosSimulado);
+  Administrador admin = adminVacio;
+  int _tallerSeq = 1;
+  int _instSeq = 1;
+  final Map<String, int> _horasOtros = {};
   final List<({String tipo, String formato, DateTime fecha})> _reportes = [];
-  late final List<Instructor> _instructores = {
-    for (final t in talleresSimulado) t.instructor.id: t.instructor,
-  }.values.toList();
+  final List<Alumno> _alumnos = [];
+  final List<Instructor> _instructores = [];
 
   List<Instructor> get instructores => List.unmodifiable(_instructores);
   List<Alumno> get todosAlumnos {
-    final vistos = {
-      alumno.numeroControl,
-      for (final a in companerosSimulado) a.numeroControl,
-    };
+    final vistos = {for (final a in _alumnos) a.numeroControl};
     return [
-      alumno,
-      ...companerosSimulado,
+      ..._alumnos,
       // alumnos que se registraron con "Crear cuenta"
       for (final c in _almacen?.alumnos ?? const <CuentaGuardada>[])
         if (vistos.add(c.numeroControl)) c.aAlumno(),
     ];
   }
+
   List<({String tipo, String formato, DateTime fecha})> get reportes =>
       List.unmodifiable(_reportes);
 
@@ -284,6 +543,10 @@ class EstadoApp extends ChangeNotifier {
         }
       }
     }
+    _guardar((r) async {
+      await r.guardarTaller(t);
+      await r.guardarContador('taller', _tallerSeq);
+    });
     notifyListeners();
   }
 
@@ -316,29 +579,32 @@ class EstadoApp extends ChangeNotifier {
     required String correo,
     required String especialidad,
   }) {
-    _instructores.add(
-      Instructor(
-        id: _instSeq++,
-        nombre: nombre.trim(),
-        apellidoPaterno: paterno.trim(),
-        apellidoMaterno: materno.trim(),
-        correo: correo.trim().toLowerCase(),
-        especialidad: especialidad.trim(),
-      ),
+    final instructor = Instructor(
+      id: _instSeq++,
+      nombre: nombre.trim(),
+      apellidoPaterno: paterno.trim(),
+      apellidoMaterno: materno.trim(),
+      correo: correo.trim().toLowerCase(),
+      especialidad: especialidad.trim(),
     );
+    _instructores.add(instructor);
+    _guardar((r) async {
+      await r.guardarInstructor(instructor);
+      await r.guardarContador('instructor', _instSeq);
+    });
     notifyListeners();
   }
 
   void registrarReporte(String tipo, String formato) {
-    _reportes.insert(0, (tipo: tipo, formato: formato, fecha: DateTime.now()));
+    final fecha = DateTime.now();
+    _reportes.insert(0, (tipo: tipo, formato: formato, fecha: fecha));
+    _guardar((r) => r.guardarReporte(tipo, formato, fecha));
     notifyListeners();
   }
 
-    // ================= CHATS GRUPALES =================
-  final Map<int, List<MensajeChat>> _chats = {
-    for (final e in chatsSimulado.entries) e.key: List.of(e.value),
-  };
-  int _msgSeq = 100;
+  // ================= CHATS GRUPALES =================
+  final Map<int, List<MensajeChat>> _chats = {};
+  int _msgSeq = 1;
 
   List<MensajeChat> mensajesDe(int tallerId) =>
       List.unmodifiable(_chats[tallerId] ?? const []);
@@ -368,22 +634,25 @@ class EstadoApp extends ChangeNotifier {
   }) {
     final t = texto.trim();
     if (t.isEmpty) return;
-    _chats.putIfAbsent(tallerId, () => []).add(
-      MensajeChat(
-        id: _msgSeq++,
-        tallerId: tallerId,
-        rol: rol,
-        autor: nombreChat(rol),
-        texto: t,
-        fecha: DateTime.now(),
-      ),
+    final mensaje = MensajeChat(
+      id: _msgSeq++,
+      tallerId: tallerId,
+      rol: rol,
+      autor: nombreChat(rol),
+      texto: t,
+      fecha: DateTime.now(),
     );
+    _chats.putIfAbsent(tallerId, () => []).add(mensaje);
+    _guardar((r) async {
+      await r.guardarMensaje(mensaje);
+      await r.guardarContador('mensaje', _msgSeq);
+    });
     notifyListeners();
   }
 
   // ================= ENCUESTAS =================
-  final List<RespuestaEncuesta> _encuestas = List.of(encuestasSimulado);
-  int _encSeq = 100;
+  final List<RespuestaEncuesta> _encuestas = [];
+  int _encSeq = 1;
 
   List<RespuestaEncuesta> get encuestas => List.unmodifiable(_encuestas);
 
@@ -398,18 +667,20 @@ class EstadoApp extends ChangeNotifier {
     String comentario = '',
   }) {
     if (encuestaContestada(tallerId)) return;
-    _encuestas.insert(
-      0,
-      RespuestaEncuesta(
-        id: _encSeq++,
-        tallerId: tallerId,
-        numeroControl: alumno.numeroControl,
-        califClub: club,
-        califInstructor: instructorCalif,
-        comentario: comentario.trim(),
-        fecha: DateTime.now(),
-      ),
+    final encuesta = RespuestaEncuesta(
+      id: _encSeq++,
+      tallerId: tallerId,
+      numeroControl: alumno.numeroControl,
+      califClub: club,
+      califInstructor: instructorCalif,
+      comentario: comentario.trim(),
+      fecha: DateTime.now(),
     );
+    _encuestas.insert(0, encuesta);
+    _guardar((r) async {
+      await r.guardarEncuesta(encuesta);
+      await r.guardarContador('encuesta', _encSeq);
+    });
     notifyListeners();
   }
 
@@ -446,8 +717,8 @@ class EstadoApp extends ChangeNotifier {
   }
 
   // ================= SOLICITUDES AL ADMIN =================
-  final List<SolicitudAdmin> _solicitudes = List.of(solicitudesSimulado);
-  int _solSeq = 100;
+  final List<SolicitudAdmin> _solicitudes = [];
+  int _solSeq = 1;
 
   List<SolicitudAdmin> get solicitudes => List.unmodifiable(_solicitudes);
 
@@ -457,14 +728,13 @@ class EstadoApp extends ChangeNotifier {
   int get solicitudesPendientes =>
       _solicitudes.where((s) => s.estado == EstadoSolicitud.pendiente).length;
 
- 
-
   void atenderSolicitud(int id) {
     final i = _solicitudes.indexWhere((s) => s.id == id);
     if (i < 0) return;
     _solicitudes[i] = _solicitudes[i].copyWith(
       estado: EstadoSolicitud.atendida,
     );
+    _guardar((r) => r.guardarSolicitud(_solicitudes[i]));
     notifyListeners();
   }
 
@@ -478,10 +748,10 @@ class EstadoApp extends ChangeNotifier {
         .length;
   }
 
-    // ================= AVISOS: leídos / archivados =================
+  // ================= AVISOS: leídos / archivados =================
   final Set<int> _avisosLeidos = {};
   final Set<int> _avisosArchivados = {};
-  int _avisoSeq = 1000;
+  int _avisoSeq = 1;
 
   bool avisoLeido(int id) => _avisosLeidos.contains(id);
   List<Aviso> get avisosVisibles =>
@@ -493,16 +763,27 @@ class EstadoApp extends ChangeNotifier {
 
   void marcarAviso(int id, {bool leido = true}) {
     leido ? _avisosLeidos.add(id) : _avisosLeidos.remove(id);
+    _guardar((r) => r.estadoAviso(id, leido: leido));
     notifyListeners();
   }
 
   void marcarTodosLeidos() {
-    _avisosLeidos.addAll(avisosVisibles.map((a) => a.id));
+    final ids = avisosVisibles
+        .where((a) => !_avisosLeidos.contains(a.id))
+        .map((a) => a.id)
+        .toList();
+    _avisosLeidos.addAll(ids);
+    _guardar((r) async {
+      for (final id in ids) {
+        await r.estadoAviso(id, leido: true);
+      }
+    });
     notifyListeners();
   }
 
   void archivarAviso(int id, {bool archivar = true}) {
     archivar ? _avisosArchivados.add(id) : _avisosArchivados.remove(id);
+    _guardar((r) => r.estadoAviso(id, archivado: archivar));
     notifyListeners();
   }
 
@@ -510,6 +791,7 @@ class EstadoApp extends ChangeNotifier {
     final i = _avisos.indexWhere((a) => a.id == id);
     if (i < 0) return null;
     final a = _avisos.removeAt(i);
+    _guardar((r) => r.eliminarAviso(id));
     notifyListeners();
     return a;
   }
@@ -517,6 +799,13 @@ class EstadoApp extends ChangeNotifier {
   void restaurarAviso(Aviso a) {
     _avisos.add(a);
     _avisos.sort((x, y) => y.fecha.compareTo(x.fecha));
+    _guardar(
+      (r) => r.guardarAviso(
+        a,
+        leido: _avisosLeidos.contains(a.id),
+        archivado: _avisosArchivados.contains(a.id),
+      ),
+    );
     notifyListeners();
   }
 
@@ -535,12 +824,16 @@ class EstadoApp extends ChangeNotifier {
       if (_chatsAnclados.length >= 3) return false;
       _chatsAnclados.add(id);
     }
+    _guardar(
+      (r) => r.guardarEstadoChat(id, anclado: _chatsAnclados.contains(id)),
+    );
     notifyListeners();
     return true;
   }
 
   void ponerFondoChat(int id, int fondo) {
     _fondosChat[id] = fondo;
+    _guardar((r) => r.guardarEstadoChat(id, fondo: fondo));
     notifyListeners();
   }
 
@@ -567,12 +860,13 @@ class EstadoApp extends ChangeNotifier {
   final Map<int, int> _bajas = {};
   int bajasDe(int tallerId) => _bajas[tallerId] ?? 0;
 
-  bool haySolicitudPendiente(int tallerId, TipoSolicitud tipo) => _solicitudes.any(
-    (s) =>
-        s.tallerId == tallerId &&
-        s.tipo == tipo &&
-        s.estado == EstadoSolicitud.pendiente,
-  );
+  bool haySolicitudPendiente(int tallerId, TipoSolicitud tipo) =>
+      _solicitudes.any(
+        (s) =>
+            s.tallerId == tallerId &&
+            s.tipo == tipo &&
+            s.estado == EstadoSolicitud.pendiente,
+      );
 
   /// false si ya existe una igual pendiente
   bool enviarSolicitud({
@@ -581,18 +875,20 @@ class EstadoApp extends ChangeNotifier {
     String mensaje = '',
   }) {
     if (haySolicitudPendiente(taller.id, tipo)) return false;
-    _solicitudes.insert(
-      0,
-      SolicitudAdmin(
-        id: _solSeq++,
-        tallerId: taller.id,
-        instructorId: instructor.id,
-        instructorNombre: instructor.nombreCompleto,
-        tipo: tipo,
-        mensaje: mensaje.trim(),
-        fecha: DateTime.now(),
-      ),
+    final solicitud = SolicitudAdmin(
+      id: _solSeq++,
+      tallerId: taller.id,
+      instructorId: instructor.id,
+      instructorNombre: instructor.nombreCompleto,
+      tipo: tipo,
+      mensaje: mensaje.trim(),
+      fecha: DateTime.now(),
     );
+    _solicitudes.insert(0, solicitud);
+    _guardar((r) async {
+      await r.guardarSolicitud(solicitud);
+      await r.guardarContador('solicitud', _solSeq);
+    });
     notifyListeners();
     return true;
   }
@@ -601,6 +897,7 @@ class EstadoApp extends ChangeNotifier {
     _solicitudes.removeWhere(
       (s) => s.id == id && s.estado == EstadoSolicitud.pendiente,
     );
+    _guardar((r) => r.eliminarSolicitud(id));
     notifyListeners();
   }
 
@@ -622,56 +919,47 @@ class EstadoApp extends ChangeNotifier {
       respuesta: respuesta.trim(),
       cupoExtra: aprobar ? cupoExtra : 0,
     );
+    _guardar((r) => r.guardarSolicitud(_solicitudes[i]));
     notifyListeners();
   }
 
-  // ================= CUENTAS GUARDADAS (JSON) =================
-  Alumno _alumnoDemo = alumnoSimulado;
-  Instructor _instructorDemo = instructorSimulado;
-  bool _alumnoEsDemo = true;
-  bool _instructorEsDemo = true;
+  // ================= CUENTAS GUARDADAS =================
 
-  /// Pone como "persona actual" a la cuenta guardada con la que se entró.
-  /// Con null vuelve a las cuentas de prueba.
+  /// Pone como "persona actual" a la cuenta con la que se entró.
+  /// Con null deja los perfiles vacíos (explorar sin cuenta).
   void usarCuenta(CuentaGuardada? c) {
-    if (_alumnoEsDemo) _alumnoDemo = alumno;
-    if (_instructorEsDemo) _instructorDemo = instructor;
-
     if (c != null && c.rol == Rol.alumno) {
       alumno = c.aAlumno();
-      _alumnoEsDemo = false;
     } else {
-      alumno = _alumnoDemo;
-      _alumnoEsDemo = true;
+      alumno = alumnoVacio;
     }
 
     if (c != null && c.rol == Rol.instructor) {
-      final id = c.id;
       instructor = _instructores.firstWhere(
-        (i) => i.id == id,
+        (i) => i.id == c.id,
         orElse: () => c.aInstructor(),
       );
-      _instructorEsDemo = false;
     } else {
-      instructor = _instructorDemo;
-      _instructorEsDemo = true;
+      instructor = instructorVacio;
+    }
+
+    if (c != null && c.rol == Rol.admin) {
+      admin = Administrador(
+        id: c.id,
+        nombre: c.nombre,
+        apellidoPaterno: c.apellidoPaterno,
+        apellidoMaterno: c.apellidoMaterno,
+        correo: c.correo,
+        cargo: 'Coordinador',
+      );
+    } else {
+      admin = adminVacio;
     }
     notifyListeners();
   }
 
-  // al abrir la app: mete a los instructores del JSON y les regresa sus talleres
-  void _cargarInstructoresGuardados() {
-    final a = _almacen;
-    if (a == null) return;
-    for (final c in a.instructores) {
-      final inst = c.aInstructor();
-      _instructores.add(inst);
-      for (final id in c.tallerIds) {
-        final i = _talleres.indexWhere((t) => t.id == id);
-        if (i >= 0) guardarTaller(_talleres[i].copyWith(instructor: inst));
-      }
-    }
-  }
+  // al abrir la app los instructores ya vienen de la base de datos
+  // (ver cargar()), incluyendo los que el admin dio de alta.
 
   // ================= ADMIN: instructores con cuenta =================
   bool tieneCuentaInstructor(int id) => _almacen?.porId(id) != null;
@@ -694,6 +982,7 @@ class EstadoApp extends ChangeNotifier {
       if (t.instructor.id == n.id) guardarTaller(t.copyWith(instructor: n));
     }
     if (instructor.id == n.id) instructor = n;
+    _guardar((r) => r.guardarInstructor(n));
     notifyListeners();
   }
 
@@ -709,14 +998,20 @@ class EstadoApp extends ChangeNotifier {
   }) async {
     final a = _almacen;
     if (a == null) {
-      return (instructor: null, error: 'Error: no se pudo abrir el almacenamiento');
+      return (
+        instructor: null,
+        error: 'Error: no se pudo abrir el almacenamiento',
+      );
     }
     final mail = correo.trim().toLowerCase();
     if (existeCorreoInstructor(mail) || a.correoTomado(mail)) {
       return (instructor: null, error: 'Error: ese correo ya está registrado');
     }
     if (existeInstructor(nombre, paterno, materno)) {
-      return (instructor: null, error: 'Error: ya existe un instructor con ese nombre');
+      return (
+        instructor: null,
+        error: 'Error: ya existe un instructor con ese nombre',
+      );
     }
     final c = CuentaGuardada(
       id: a.nuevoId(),

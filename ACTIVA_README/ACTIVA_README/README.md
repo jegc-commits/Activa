@@ -8,13 +8,23 @@ ACTIVA es una app móvil para inscribirse y dar seguimiento a las actividades pa
 
 ##Los 3 tipos de usuario y sus dashboards
 
-| Usuario | Qué ve en su dashboard | Cuenta de prueba |
+| Usuario | Qué ve en su dashboard | Cómo entrar |
 |---|---|---|
-| **Alumno** | Progreso de horas (38/60), acceso a chats grupales, actividades por categoría, actividad sugerida y avisos recientes. Menú: Inicio, Explorar, Mis actividades, Avisos, Perfil. | `mar_alumna` |
-| **Instructor** | Última sesión con acceso rápido a *Pasar lista* y *Ver alumnos*, estadísticas (alumnos, asistencia, grupos), chats y sus grupos. Menú: Inicio, Grupos, Asistencia, Avisos, Perfil. | `mar_instructor` |
-| **Administrador (Coordinación de Paraescolares)** | Panel con totales (estudiantes, actividades, inscripciones, cupos), accesos a Nueva actividad, Instructores y Reportes, y actividades activas con su ocupación. Menú: Panel, Actividades, Alumnos, Reportes, Perfil. | `mar_admin` |
+| **Alumno** | Progreso de horas (meta de 60), acceso a chats grupales, actividades por categoría, actividad sugerida y avisos recientes. Menú: Inicio, Explorar, Mis actividades, Avisos, Perfil. | Se registra desde **Crear cuenta** |
+| **Instructor** | Última sesión con acceso rápido a *Pasar lista* y *Ver alumnos*, estadísticas (alumnos, asistencia, grupos), chats y sus grupos. Menú: Inicio, Grupos, Asistencia, Avisos, Perfil. | Lo crea el administrador |
+| **Administrador (Coordinación de Paraescolares)** | Panel con totales (estudiantes, actividades, inscripciones, cupos), accesos a Nueva actividad, Instructores y Reportes, y actividades activas con su ocupación. Menú: Panel, Actividades, Alumnos, Reportes, Perfil. | Cuenta inicial `admin` |
 
-Contraseñaia de las cuentas de prueba: `Activa2026!`
+Contraseña inicial del administrador: `Activa2026!`
+
+**Datos de prueba (opcional).** Para una demostración con información ya cargada:
+
+```bash
+cd Activa-main
+flutter test tool/datos_prueba.dart
+cp activa_datos_prueba.sqlite ~/Documentos/activa.db   # Linux, con la app cerrada
+```
+
+Incluye 6 instructores, 12 alumnos, 6 talleres, asistencias, avisos, chats, encuestas y solicitudes. Todas las cuentas usan `Activa2026!`; por ejemplo `ana_lopez` (instructora), `mariana_torres` (alumna) y `admin` (coordinación). La base limpia (`activa.sqlite`) no se modifica.
 
 **Funciones por rol**
 - **Alumno:** explorar y filtrar actividades, inscribirse y darse de baja, comprobante con QR y folio (descarga en PDF), Mi progreso, Mis comprobantes, favoritos, encuestas de sus clubes, chats grupales, editar perfil y configuración.

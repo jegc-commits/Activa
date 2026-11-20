@@ -7,7 +7,6 @@ import '../../../nucleo/utilidades/formateadores.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../nucleo/componentes/estructura_subpantalla.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
 import '../../alumno/componentes/miniatura_taller.dart';
 
 class PantallaGrupos extends StatelessWidget {
@@ -16,7 +15,8 @@ class PantallaGrupos extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final grupos = context.watch<EstadoApp>().misGrupos;
+    final s = context.watch<EstadoApp>();
+    final grupos = s.misGrupos;
     final cuerpo = SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(20),
@@ -63,15 +63,26 @@ class PantallaGrupos extends StatelessWidget {
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        const Icon(Icons.access_time, size: 16, color: Colors.black45),
+                        const Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: Colors.black45,
+                        ),
                         const SizedBox(width: 6),
-                        Text(t.horarioTexto, style: const TextStyle(fontSize: 12)),
+                        Text(
+                          t.horarioTexto,
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.location_on, size: 16, color: Colors.black45),
+                        const Icon(
+                          Icons.location_on,
+                          size: 16,
+                          color: Colors.black45,
+                        ),
                         const SizedBox(width: 6),
                         Text(t.lugar, style: const TextStyle(fontSize: 12)),
                       ],
@@ -83,7 +94,9 @@ class PantallaGrupos extends StatelessWidget {
                         value: t.inscritos / t.cupoMaximo,
                         minHeight: 8,
                         backgroundColor: ColoresApp.background,
-                        color: t.hayCupo ? ColoresApp.primary : ColoresApp.danger,
+                        color: t.hayCupo
+                            ? ColoresApp.primary
+                            : ColoresApp.danger,
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -95,7 +108,8 @@ class PantallaGrupos extends StatelessWidget {
                               minimumSize: const Size.fromHeight(48),
                               shape: const StadiumBorder(),
                             ),
-                            onPressed: () => context.push('/instructor/grupo/${t.id}'),
+                            onPressed: () =>
+                                context.push('/instructor/grupo/${t.id}'),
                             icon: const Icon(Icons.groups, size: 18),
                             label: const Text('Ver alumnos'),
                           ),
@@ -240,12 +254,12 @@ class _EstadoPantallaAlumnosGrupo extends State<PantallaAlumnosGrupo> {
                         ],
                       ),
                     ),
-                    Text(
-                      asistenciaPreviaSimulado[a.numeroControl] == null
+                    Text(() {
+                      final asis = s.asistenciaDeAlumno(t.id, a.numeroControl);
+                      return asis.total == 0
                           ? '—'
-                          : '${asistenciaPreviaSimulado[a.numeroControl]![0]} / ${asistenciaPreviaSimulado[a.numeroControl]![1]}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                          : '${asis.asistidas} / ${asis.total}';
+                    }(), style: const TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),

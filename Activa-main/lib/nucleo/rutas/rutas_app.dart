@@ -1,8 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../modulos/autenticacion/pantallas/pantalla_cambiar_contrasena.dart';
-
-
 import '../../modulos/autenticacion/pantallas/pantalla_carga.dart';
 import '../../modulos/alumno/pantallas/pantallas_ayuda.dart';
 import '../../modulos/autenticacion/pantallas/pantalla_olvide_contrasena.dart';
@@ -10,11 +9,11 @@ import '../../modulos/autenticacion/pantallas/pantalla_inicio_sesion.dart';
 import '../../modulos/autenticacion/pantallas/pantalla_contrasena_actualizada.dart';
 import '../../modulos/autenticacion/pantallas/pantalla_registro.dart';
 import '../../modulos/autenticacion/pantallas/pantalla_bienvenida.dart';
-import '../../modulos/alumno/pantallas/pantalla_detalle_actividad.dart';
+import '../../modulos/alumno/pantallas/pantalla_detalle_taller.dart';
 import '../../modulos/alumno/pantallas/pantalla_inscripcion_exitosa.dart';
 import '../../modulos/alumno/pantallas/pantalla_explorar.dart';
 import '../../modulos/alumno/pantallas/pantalla_inicio_alumno.dart';
-import '../../modulos/alumno/pantallas/pantalla_mis_actividades.dart';
+import '../../modulos/alumno/pantallas/pantalla_mis_talleres.dart';
 import '../../modulos/alumno/pantallas/pantalla_avisos.dart';
 import '../../modulos/alumno/pantallas/pantallas_perfil.dart';
 import '../../modulos/alumno/pantallas/estructura_alumno.dart';
@@ -28,7 +27,7 @@ import '../../modulos/instructor/pantallas/pantalla_inicio_instructor.dart';
 import '../../modulos/instructor/pantallas/pantalla_perfil_instructor.dart';
 import '../../modulos/instructor/pantallas/estructura_instructor.dart';
 import '../../modulos/instructor/pantallas/pantallas_avisos_instructor.dart';
-import '../../modulos/administrador/pantallas/pantallas_actividades_admin.dart';
+import '../../modulos/administrador/pantallas/pantallas_talleres_admin.dart';
 import '../../modulos/administrador/pantallas/pantalla_inicio_admin.dart';
 import '../../modulos/administrador/pantallas/pantallas_personas_admin.dart';
 import '../../modulos/administrador/pantallas/pantallas_reportes_perfil_admin.dart';
@@ -38,17 +37,20 @@ import '../../modulos/alumno/pantallas/pantallas_encuestas.dart';
 import '../../modulos/instructor/pantallas/pantalla_solicitudes_instructor.dart';
 import '../../modulos/administrador/pantallas/pantalla_solicitudes_admin.dart';
 import '../../modulos/alumno/pantallas/pantalla_acerca_de.dart';
-
-import '../../modulos/autenticacion/pantallas/pantalla_cambiar_contrasena.dart';
 import '../../modulos/administrador/pantallas/pantallas_instructores_admin.dart';
 
+// 👇 AQUÍ ESTÁ LA VARIABLE QUE TU APLICACION ESTÁ BUSCANDO
 final enrutadorApp = GoRouter(
   initialLocation: '/carga',
   routes: [
+    // Ruta raíz
+    GoRoute(path: '/', redirect: (_, _) => '/carga'),
+
+    // Rutas de autenticación
     GoRoute(
-  path: '/cambiar-contrasena',
-  builder: (_, _) => const PantallaCambiarContrasena(),
-),
+      path: '/cambiar-contrasena',
+      builder: (_, _) => const PantallaCambiarContrasena(),
+    ),
     GoRoute(path: '/carga', builder: (_, _) => const PantallaCarga()),
     GoRoute(path: '/bienvenida', builder: (_, _) => const PantallaBienvenida()),
     GoRoute(
@@ -56,13 +58,6 @@ final enrutadorApp = GoRouter(
       builder: (_, _) => const PantallaInicioSesion(),
     ),
     GoRoute(path: '/registro', builder: (_, _) => const PantallaRegistro()),
-        // primer acceso con contraseña temporal (instructores creados por el admin)
-    GoRoute(
-      path: '/cambiar-contrasena',
-      builder: (_, _) => const PantallaCambiarContrasena(),
-    ),
-
-
     GoRoute(
       path: '/olvide-contrasena',
       builder: (_, _) => const PantallaOlvideContrasena(),
@@ -72,15 +67,13 @@ final enrutadorApp = GoRouter(
       builder: (_, _) => const PantallaContrasenaActualizada(),
     ),
 
-
-        // Chats grupales (los 3 roles)
+    // Chats y encuestas
     GoRoute(path: '/chats', builder: (_, _) => const PantallaListaChats()),
     GoRoute(
       path: '/chat/:id',
       builder: (_, s) =>
           PantallaChatGrupal(tallerId: int.parse(s.pathParameters['id']!)),
     ),
-    // Encuestas del alumno
     GoRoute(
       path: '/encuestas',
       builder: (_, _) => const PantallaEncuestasAlumno(),
@@ -90,7 +83,6 @@ final enrutadorApp = GoRouter(
       builder: (_, s) =>
           PantallaEncuesta(tallerId: int.parse(s.pathParameters['id']!)),
     ),
-    // Solicitudes instructor -> admin
     GoRoute(
       path: '/instructor/solicitudes',
       builder: (_, _) => const PantallaSolicitudesInstructor(),
@@ -100,7 +92,9 @@ final enrutadorApp = GoRouter(
       builder: (_, _) => const PantallaSolicitudesAdmin(),
     ),
 
-    // Alumno: 5 pestañas
+    // ==========================================
+    // ALUMNO: 5 PESTAÑAS
+    // ==========================================
     StatefulShellRoute.indexedStack(
       builder: (_, _, shell) => EstructuraAlumno(navigationShell: shell),
       branches: [
@@ -124,8 +118,8 @@ final enrutadorApp = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/alumno/actividades',
-              builder: (_, _) => const PantallaMisActividades(),
+              path: '/alumno/actividades', // Ruta real de Mis Talleres
+              builder: (_, _) => const PantallaMisTalleres(),
             ),
           ],
         ),
@@ -148,12 +142,13 @@ final enrutadorApp = GoRouter(
       ],
     ),
 
-    // Pantalla completa (sin barra inferior)
+    // ==========================================
+    // RUTAS INDEPENDIENTES (PANTALLAS COMPLETAS)
+    // ==========================================
     GoRoute(
-      path: '/actividad/:id',
-      builder: (_, s) => PantallaDetalleActividad(
-        tallerId: int.parse(s.pathParameters['id']!),
-      ),
+      path: '/taller/:id',
+      builder: (_, s) =>
+          PantallaDetalleTaller(tallerId: int.parse(s.pathParameters['id']!)),
     ),
     GoRoute(
       path: '/inscripcion/:folio',
@@ -187,13 +182,23 @@ final enrutadorApp = GoRouter(
       builder: (_, _) => const PantallaEditarPerfilGeneral(),
     ),
     GoRoute(
-      path: '/perfil/foto',
-      builder: (_, _) => const PantallaEditarFoto(),
-    ),
-    GoRoute(
       path: '/perfil/configuracion',
       builder: (_, _) => const PantallaConfiguracion(),
-    ), // Instructor: 5 pestañas
+    ),
+    // Única ruta de foto
+    GoRoute(
+      path: '/perfil/foto',
+      builder: (_, s) =>
+          PantallaEditarFoto(fuente: s.uri.queryParameters['fuente']),
+    ),
+    GoRoute(
+      path: '/perfil/acerca',
+      builder: (_, _) => const PantallaAcercaDe(),
+    ),
+
+    // ==========================================
+    // INSTRUCTOR: 5 PESTAÑAS
+    // ==========================================
     StatefulShellRoute.indexedStack(
       builder: (_, _, shell) => EstructuraInstructor(navigationShell: shell),
       branches: [
@@ -259,7 +264,18 @@ final enrutadorApp = GoRouter(
       path: '/instructor/historial',
       builder: (_, _) => const PantallaHistorialAsistencia(),
     ),
-    // Administrador: 5 pestañas
+    GoRoute(
+      path: '/instructor/mis-grupos',
+      builder: (_, _) => const PantallaGrupos(conAtras: true),
+    ),
+    GoRoute(
+      path: '/instructor/mis-avisos',
+      builder: (_, _) => const PantallaAvisosInstructor(conAtras: true),
+    ),
+
+    // ==========================================
+    // ADMINISTRADOR: 5 PESTAÑAS
+    // ==========================================
     StatefulShellRoute.indexedStack(
       builder: (_, _, shell) => EstructuraAdmin(navigationShell: shell),
       branches: [
@@ -274,8 +290,8 @@ final enrutadorApp = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/admin/actividades',
-              builder: (_, _) => const PantallaActividadesAdmin(),
+              path: '/admin/talleres',
+              builder: (_, _) => const PantallaTalleresAdmin(),
             ),
           ],
         ),
@@ -306,16 +322,16 @@ final enrutadorApp = GoRouter(
       ],
     ),
     GoRoute(
-      path: '/admin/actividad/nuevo',
+      path: '/admin/taller/nuevo',
       builder: (_, _) => const PantallaFormularioActividad(),
     ),
     GoRoute(
-      path: '/admin/actividad/:id/editar',
+      path: '/admin/taller/:id/editar',
       builder: (_, s) => PantallaFormularioActividad(
         tallerId: int.parse(s.pathParameters['id']!),
       ),
     ),
-      GoRoute(
+    GoRoute(
       path: '/admin/instructores',
       builder: (_, _) => const PantallaInstructoresAdmin(),
     ),
@@ -340,20 +356,6 @@ final enrutadorApp = GoRouter(
     GoRoute(
       path: '/admin/avisos',
       builder: (_, _) => const PantallaAvisosGenerales(),
-    ),
-        GoRoute(
-      path: '/perfil/foto',
-      builder: (_, s) => PantallaEditarFoto(fuente: s.uri.queryParameters['fuente']),
-    ),
-    GoRoute(path: '/perfil/acerca', builder: (_, _) => const PantallaAcercaDe()),
-    // Instructor: abiertas desde Perfil, con flecha de regreso a Perfil
-    GoRoute(
-      path: '/instructor/mis-grupos',
-      builder: (_, _) => const PantallaGrupos(conAtras: true),
-    ),
-    GoRoute(
-      path: '/instructor/mis-avisos',
-      builder: (_, _) => const PantallaAvisosInstructor(conAtras: true),
     ),
   ],
 );

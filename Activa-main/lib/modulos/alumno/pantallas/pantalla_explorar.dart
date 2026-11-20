@@ -92,7 +92,7 @@ class _EstadoPantallaExplorar extends State<PantallaExplorar> {
           children: [
             // Título de la pantalla
             Text(
-              'Actividades',
+              'Talleres',
               style: TextStyle(
                 fontFamily: FuentesApp.century,
                 fontSize: 26,
@@ -113,7 +113,7 @@ class _EstadoPantallaExplorar extends State<PantallaExplorar> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search_rounded),
-                hintText: '¿Qué actividad buscas?',
+                hintText: '¿Qué taller buscas?',
                 // Botón X solo cuando ya escribió algo
                 suffixIcon: q.isEmpty
                     ? null
@@ -167,7 +167,7 @@ class _EstadoPantallaExplorar extends State<PantallaExplorar> {
                           ),
                           const SizedBox(height: 10),
                           const Text(
-                            'No encontramos actividades',
+                            'No encontramos talleres',
                             style: TextStyle(color: ColoresApp.muted),
                           ),
                         ],

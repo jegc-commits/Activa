@@ -10,7 +10,7 @@ import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/utilidades/formateadores.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
+import '../../../datos/constantes_app.dart';
 import '../componentes/miniatura_taller.dart';
 import '../../../nucleo/servicios/sonidos.dart';
 import '../../../nucleo/componentes/avisos.dart';
@@ -108,28 +108,40 @@ class _Linea extends StatelessWidget {
 class PantallaPerfil extends StatelessWidget {
   const PantallaPerfil({super.key});
 
-  Widget _atajo(IconData i, String t, String sub, Color col, VoidCallback f) => Expanded(
-    child: TarjetaApp(
-      onTap: f,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: col.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
+  Widget _atajo(IconData i, String t, String sub, Color col, VoidCallback f) =>
+      Expanded(
+        child: TarjetaApp(
+          onTap: f,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: col.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(i, color: col),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                t,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: ColoresApp.navy,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                sub,
+                style: const TextStyle(color: ColoresApp.muted, fontSize: 11),
+              ),
+            ],
           ),
-          child: Icon(i, color: col),
         ),
-        const SizedBox(height: 12),
-        Text(t,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                fontWeight: FontWeight.w800, color: ColoresApp.navy, fontSize: 14)),
-        Text(sub, style: const TextStyle(color: ColoresApp.muted, fontSize: 11)),
-      ]),
-    ),
-  );
+      );
 
   Widget _fila(IconData i, String t, VoidCallback f) => ListTile(
     leading: Icon(i, color: ColoresApp.primary),
@@ -140,9 +152,14 @@ class PantallaPerfil extends StatelessWidget {
 
   Widget _seccion(String t) => Padding(
     padding: const EdgeInsets.fromLTRB(4, 22, 0, 8),
-    child: Text(t,
-        style: const TextStyle(
-            fontWeight: FontWeight.w800, color: ColoresApp.navy, fontSize: 15)),
+    child: Text(
+      t,
+      style: const TextStyle(
+        fontWeight: FontWeight.w800,
+        color: ColoresApp.navy,
+        fontSize: 15,
+      ),
+    ),
   );
 
   @override
@@ -165,116 +182,189 @@ class PantallaPerfil extends StatelessWidget {
             bottom: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
-              child: Column(children: [
-                GestureDetector(
-                  onTap: () => context.push('/perfil/editar'),
-                  child: Stack(children: [
-                    AvatarActiva(
-                        rol: Rol.alumno, iniciales: inicialesDe(a.nombre), radio: 48, borde: true),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                            color: Colors.white, shape: BoxShape.circle),
-                        child: const Icon(Icons.edit_rounded,
-                            size: 14, color: ColoresApp.primary),
-                      ),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: () => context.push('/perfil/editar'),
+                    child: Stack(
+                      children: [
+                        AvatarActiva(
+                          rol: Rol.alumno,
+                          iniciales: inicialesDe(a.nombre),
+                          radio: 48,
+                          borde: true,
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.edit_rounded,
+                              size: 14,
+                              color: ColoresApp.primary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ]),
-                ),
-                const SizedBox(height: 12),
-                Text(a.nombreCompleto,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    a.nombreCompleto,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontFamily: FuentesApp.century,
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text('@$usuario · ${a.numeroControl}',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12)),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+                      fontFamily: FuentesApp.century,
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                    _DatoPerfil('$h / $metaHoras', context.tr('perfil.horas')),
-                    _DatoPerfil('${s.misInscripciones.length}', context.tr('perfil.actividades')),
-                    _DatoPerfil('$favs', context.tr('perfil.favoritos')),
-                  ]),
-                ),
-              ]),
+                  const SizedBox(height: 2),
+                  Text(
+                    '@$usuario · ${a.numeroControl}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.75),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.20),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _DatoPerfil(
+                          '$h / $metaHoras',
+                          context.tr('perfil.horas'),
+                        ),
+                        _DatoPerfil(
+                          '${s.misInscripciones.length}',
+                          context.tr('perfil.talleres'),
+                        ),
+                        _DatoPerfil('$favs', context.tr('perfil.favoritos')),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
         Padding(
           padding: const EdgeInsets.all(20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              _atajo(Icons.calendar_today, context.tr('nav.actividades'),
-                  '${s.misInscripciones.length} activas', ColoresApp.primary,
-                  () => context.go('/alumno/actividades')),
-              const SizedBox(width: 12),
-              _atajo(Icons.description, context.tr('perfil.comprobantes'), 'Descarga en PDF',
-                  ColoresApp.teal, () => context.push('/perfil/comprobantes')),
-            ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              _atajo(Icons.bar_chart, context.tr('perfil.progreso'), '$h de $metaHoras h',
-                  ColoresApp.warning, () => context.push('/perfil/progreso')),
-              const SizedBox(width: 12),
-              _atajo(Icons.favorite, context.tr('perfil.misFavoritos'), '$favs guardadas',
-                  ColoresApp.danger, () => context.push('/perfil/favoritos')),
-            ]),
-            _seccion(context.tr('perfil.comunidad')),
-            TarjetaApp(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: ListTile.divideTiles(context: context, tiles: [
-                  _fila(Icons.forum_rounded, context.tr('perfil.chats'),
-                      () => context.push('/chats')),
-                  _fila(Icons.rate_review_rounded, context.tr('perfil.encuestas'),
-                      () => context.push('/encuestas')),
-                ]).toList(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _atajo(
+                    Icons.calendar_today,
+                    context.tr('nav.actividades'),
+                    '${s.misInscripciones.length} activas',
+                    ColoresApp.primary,
+                    () => context.go('/alumno/talleres'),
+                  ),
+                  const SizedBox(width: 12),
+                  _atajo(
+                    Icons.description,
+                    context.tr('perfil.comprobantes'),
+                    'Descarga en PDF',
+                    ColoresApp.teal,
+                    () => context.push('/perfil/comprobantes'),
+                  ),
+                ],
               ),
-            ),
-            _seccion(context.tr('perfil.cuenta')),
-            TarjetaApp(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: ListTile.divideTiles(context: context, tiles: [
-                  _fila(Icons.school, context.tr('perfil.academicos'),
-                      () => context.push('/perfil/academico')),
-                  _fila(Icons.edit, context.tr('perfil.editar'),
-                      () => context.push('/perfil/editar')),
-                  _fila(Icons.settings, context.tr('perfil.config'),
-                      () => context.push('/perfil/configuracion')),
-                ]).toList(),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _atajo(
+                    Icons.bar_chart,
+                    context.tr('perfil.progreso'),
+                    '$h de $metaHoras h',
+                    ColoresApp.warning,
+                    () => context.push('/perfil/progreso'),
+                  ),
+                  const SizedBox(width: 12),
+                  _atajo(
+                    Icons.favorite,
+                    context.tr('perfil.misFavoritos'),
+                    '$favs guardadas',
+                    ColoresApp.danger,
+                    () => context.push('/perfil/favoritos'),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-                shape: const StadiumBorder(),
+              _seccion(context.tr('perfil.comunidad')),
+              TarjetaApp(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: ListTile.divideTiles(
+                    context: context,
+                    tiles: [
+                      _fila(
+                        Icons.forum_rounded,
+                        context.tr('perfil.chats'),
+                        () => context.push('/chats'),
+                      ),
+                      _fila(
+                        Icons.rate_review_rounded,
+                        context.tr('perfil.encuestas'),
+                        () => context.push('/encuestas'),
+                      ),
+                    ],
+                  ).toList(),
+                ),
               ),
-              onPressed: () => context.go('/admin'),
-              child: const Text('Ver panel de coordinador (demo)'),
-            ),
-            Center(
-              child: TextButton(
-                onPressed: () => cerrarSesionConfirmando(context),
-                child: Text(context.tr('perfil.cerrar'),
-                    style: const TextStyle(color: ColoresApp.danger)),
+              _seccion(context.tr('perfil.cuenta')),
+              TarjetaApp(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: ListTile.divideTiles(
+                    context: context,
+                    tiles: [
+                      _fila(
+                        Icons.school,
+                        context.tr('perfil.academicos'),
+                        () => context.push('/perfil/academico'),
+                      ),
+                      _fila(
+                        Icons.edit,
+                        context.tr('perfil.editar'),
+                        () => context.push('/perfil/editar'),
+                      ),
+                      _fila(
+                        Icons.settings,
+                        context.tr('perfil.config'),
+                        () => context.push('/perfil/configuracion'),
+                      ),
+                    ],
+                  ).toList(),
+                ),
               ),
-            ),
-          ]),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton(
+                  onPressed: () => cerrarSesionConfirmando(context),
+                  child: Text(
+                    context.tr('perfil.cerrar'),
+                    style: const TextStyle(color: ColoresApp.danger),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -286,16 +376,26 @@ class _DatoPerfil extends StatelessWidget {
   final String valor, etiqueta;
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-    Text(valor,
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(
+        valor,
         style: TextStyle(
-            fontFamily: FuentesApp.century,
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w700)),
-    Text(etiqueta,
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11)),
-  ]);
+          fontFamily: FuentesApp.century,
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      Text(
+        etiqueta,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.75),
+          fontSize: 11,
+        ),
+      ),
+    ],
+  );
 }
 
 // ───────────────────── Datos académicos ─────────────────────
@@ -355,7 +455,7 @@ class PantallaDatosAcademicos extends StatelessWidget {
                 ),
                 _Linea('Carrera', a.carrera),
                 _Linea('Grupo', a.grupo),
-                const _Linea('Periodo', periodoSimulado),
+                _Linea('Periodo', periodoActual),
                 const _Linea('Estatus', 'Activo', chip: true),
               ],
             ),
@@ -369,7 +469,7 @@ class PantallaDatosAcademicos extends StatelessWidget {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Actividad paraescolar',
+                        'Taller paraescolar',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -392,8 +492,8 @@ class PantallaDatosAcademicos extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   h >= metaHoras
-                      ? '¡Completaste tu actividad paraescolar!'
-                      : 'Te faltan ${metaHoras - h} horas para completar tu actividad paraescolar.',
+                      ? '¡Completaste tu taller paraescolar!'
+                      : 'Te faltan ${metaHoras - h} horas para completar tu taller paraescolar.',
                   style: const TextStyle(color: Colors.black54, fontSize: 12),
                 ),
               ],
@@ -407,8 +507,14 @@ class PantallaDatosAcademicos extends StatelessWidget {
 
 // ───────────────────── Comprobantes ─────────────────────
 class _Doc {
-  const _Doc(this.esHoras, this.titulo, this.detalle,
-      {this.locked = false, this.ins, this.finalDoc = false});
+  const _Doc(
+    this.esHoras,
+    this.titulo,
+    this.detalle, {
+    this.locked = false,
+    this.ins,
+    this.finalDoc = false,
+  });
   final bool esHoras;
   final String titulo;
   final String detalle;
@@ -426,20 +532,24 @@ class PantallaComprobantes extends StatefulWidget {
 class _EstadoPantallaComprobantes extends State<PantallaComprobantes> {
   int _tab = 0; // 0 inscripciones, 1 horas, 2 todos
 
-    Future<void> _descargar(BuildContext context, _Doc d, EstadoApp s) =>
+  Future<void> _descargar(BuildContext context, _Doc d, EstadoApp s) =>
       descargarPdfConfirmando(
         context,
         nombreDoc: d.titulo,
         generar: () => d.ins != null
             ? Documentos.comprobanteInscripcion(d.ins!)
-            : Documentos.constanciaHoras(s.alumno, s.horasRealizadas, finalDoc: d.finalDoc),
+            : Documentos.constanciaHoras(
+                s.alumno,
+                s.horasRealizadas,
+                finalDoc: d.finalDoc,
+              ),
       );
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<EstadoApp>();
     final h = s.horasRealizadas;
-    final docs = <_Doc>[ 
+    final docs = <_Doc>[
       for (final i in s.misInscripciones)
         _Doc(
           false,
@@ -523,7 +633,9 @@ class _EstadoPantallaComprobantes extends State<PantallaComprobantes> {
                         d.locked ? Icons.lock : Icons.download,
                         color: d.locked ? Colors.black26 : ColoresApp.primary,
                       ),
-                      onPressed: d.locked ? null : () => _descargar(context, d, s),
+                      onPressed: d.locked
+                          ? null
+                          : () => _descargar(context, d, s),
                     ),
                   ],
                 ),
@@ -657,18 +769,14 @@ class PantallaProgreso extends StatelessWidget {
               _Estadistica(
                 Icons.star,
                 '${s.misInscripciones.length}',
-                'Actividades',
+                'Talleres',
               ),
               const SizedBox(width: 10),
-              const _Estadistica(
-                Icons.access_time,
-                '$horasMesSimulado h',
-                'Este mes',
-              ),
+              _Estadistica(Icons.access_time, '${s.horasDelMes} h', 'Este mes'),
               const SizedBox(width: 10),
-              const _Estadistica(
+              _Estadistica(
                 Icons.check_circle,
-                '$asistenciaSimulado %',
+                '${s.porcentajeAsistencia} %',
                 'Asistencia',
               ),
             ],
@@ -679,10 +787,10 @@ class PantallaProgreso extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Horas por actividad',
+                  'Horas por taller',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                
+
                 const SizedBox(height: 12),
                 for (final i in s.misInscripciones)
                   Padding(
@@ -728,7 +836,7 @@ class PantallaProgreso extends StatelessWidget {
               ],
             ),
           ),
-                    const SizedBox(height: 12),
+          const SizedBox(height: 12),
           _Recomendaciones(s),
         ],
       ),
@@ -905,7 +1013,7 @@ class _EstadoPantallaConfiguracion extends State<PantallaConfiguracion> {
             child: Column(
               children: [
                 _sw(
-                  'Avisos de actividades',
+                  'Avisos de talleres',
                   Icons.notifications,
                   _avisos,
                   (v) => _avisos = v,
@@ -962,7 +1070,6 @@ class _EstadoPantallaConfiguracion extends State<PantallaConfiguracion> {
                   () => context.push('/perfil/acerca'),
                 ),
                 _nav(
-                  
                   'Aviso de privacidad',
                   Icons.shield,
                   () => context.push('/perfil/privacidad'),
@@ -993,8 +1100,8 @@ class _EstadoPantallaConfiguracion extends State<PantallaConfiguracion> {
       ),
     );
   }
-  
 }
+
 class _Recomendaciones extends StatelessWidget {
   const _Recomendaciones(this.s);
   final EstadoApp s;
@@ -1004,81 +1111,134 @@ class _Recomendaciones extends StatelessWidget {
     final h = s.horasRealizadas;
     final faltan = (metaHoras - h).clamp(0, metaHoras);
     final mias = s.misInscripciones;
-    final sesionesSemana = mias.fold<int>(0, (a, i) => a + i.taller.horarios.length);
+    final sesionesSemana = mias.fold<int>(
+      0,
+      (a, i) => a + i.taller.horarios.length,
+    );
     final maxHoras = mias.isEmpty
         ? 2
-        : mias.map((i) => i.taller.horasPorSesion).reduce((a, b) => a > b ? a : b);
+        : mias
+              .map((i) => i.taller.horasPorSesion)
+              .reduce((a, b) => a > b ? a : b);
     final porSesion = maxHoras < 1 ? 1 : maxHoras;
 
     final consejos = <(IconData, String)>[];
     if (faltan == 0) {
-      consejos.add((Icons.emoji_events_rounded,
-          '¡Meta cumplida! Descarga tu constancia final en Mis comprobantes.'));
+      consejos.add((
+        Icons.emoji_events_rounded,
+        '¡Meta cumplida! Descarga tu constancia final en Mis comprobantes.',
+      ));
     } else if (mias.isEmpty) {
-      consejos.add((Icons.add_circle_outline,
-          'Aún no tienes actividades. Inscríbete a una para empezar a sumar horas.'));
+      consejos.add((
+        Icons.add_circle_outline,
+        'Aún no tienes talleres. Inscríbete a una para empezar a sumar horas.',
+      ));
     } else {
       final sesiones = (faltan / porSesion).ceil();
-      final semanas = (sesiones / (sesionesSemana == 0 ? 1 : sesionesSemana)).ceil();
-      consejos.add((Icons.flag_rounded,
-          'Te faltan $faltan h (unas $sesiones sesiones). Si no faltas, terminas en ~$semanas semanas.'));
-      if (asistenciaSimulado < 85) {
-        consejos.add((Icons.event_available_rounded,
-            'Tu asistencia es de $asistenciaSimulado %. Procura no faltar para que cada sesión sume.'));
+      final semanas = (sesiones / (sesionesSemana == 0 ? 1 : sesionesSemana))
+          .ceil();
+      consejos.add((
+        Icons.flag_rounded,
+        'Te faltan $faltan h (unas $sesiones sesiones). Si no faltas, terminas en ~$semanas semanas.',
+      ));
+      if (s.porcentajeAsistencia < 85) {
+        consejos.add((
+          Icons.event_available_rounded,
+          'Tu asistencia es de ${s.porcentajeAsistencia} %. Procura no faltar para que cada sesión sume.',
+        ));
       }
       if (mias.length == 1 && faltan > 20) {
-        consejos.add((Icons.add_task_rounded,
-            'Con una segunda actividad llegarías más rápido a tu meta.'));
+        consejos.add((
+          Icons.add_task_rounded,
+          'Con una segunda taller a llegarías más rápido a tu meta.',
+        ));
       }
     }
 
-    final sugeridas = s.talleres
-        .where((t) => t.activo && t.hayCupo && !s.estaInscrito(t.id))
-        .toList()
-      ..sort((a, b) => (s.esFavorito(b.id) ? 1 : 0).compareTo(s.esFavorito(a.id) ? 1 : 0));
+    final sugeridas =
+        s.talleres
+            .where((t) => t.activo && t.hayCupo && !s.estaInscrito(t.id))
+            .toList()
+          ..sort(
+            (a, b) => (s.esFavorito(b.id) ? 1 : 0).compareTo(
+              s.esFavorito(a.id) ? 1 : 0,
+            ),
+          );
 
     return TarjetaApp(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Row(children: [
-          Icon(Icons.lightbulb_rounded, color: ColoresApp.warning),
-          SizedBox(width: 8),
-          Text('Recomendaciones', style: TextStyle(fontWeight: FontWeight.bold)),
-        ]),
-        const SizedBox(height: 12),
-        for (final (i, t) in consejos)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(i, size: 20, color: ColoresApp.primary),
-              const SizedBox(width: 10),
-              Expanded(child: Text(t, style: const TextStyle(fontSize: 13, height: 1.35))),
-            ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.lightbulb_rounded, color: ColoresApp.warning),
+              SizedBox(width: 8),
+              Text(
+                'Recomendaciones',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
-        if (faltan > 0 && sugeridas.isNotEmpty) ...[
-          const Divider(height: 24),
-          const Text('Actividades para ti', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          for (final t in sugeridas.take(3))
+          const SizedBox(height: 12),
+          for (final (i, t) in consejos)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Row(children: [
-                MiniaturaTaller(t, size: 42),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(t.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(t.horarioTexto.replaceAll(' | ', ' · '),
-                        style: const TextStyle(color: Colors.black54, fontSize: 11)),
-                  ]),
-                ),
-                TextButton(
-                  onPressed: () => context.push('/actividad/${t.id}'),
-                  child: const Text('Ver'),
-                ),
-              ]),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(i, size: 20, color: ColoresApp.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      t,
+                      style: const TextStyle(fontSize: 13, height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
             ),
+          if (faltan > 0 && sugeridas.isNotEmpty) ...[
+            const Divider(height: 24),
+            const Text(
+              'Talleres para ti',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            for (final t in sugeridas.take(3))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    MiniaturaTaller(t, size: 42),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t.nombre,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            t.horarioTexto.replaceAll(' | ', ' · '),
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/taller/${t.id}'),
+                      child: const Text('Ver'),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }

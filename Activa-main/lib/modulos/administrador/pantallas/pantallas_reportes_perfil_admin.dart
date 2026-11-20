@@ -11,7 +11,7 @@ import '../../../nucleo/servicios/documentos.dart';
 import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/utilidades/formateadores.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
+import '../../../datos/constantes_app.dart';
 import 'pantallas_seguimiento_admin.dart';
 
 class PantallaReportes extends StatefulWidget {
@@ -30,7 +30,7 @@ class _EstadoReportes extends State<PantallaReportes> {
     final m = ScaffoldMessenger.of(context);
     try {
       await Documentos.exportarReporte(formato, s);
-      s.registrarReporte('Inscripciones por actividad', formato);
+      s.registrarReporte('Inscripciones por Taller', formato);
       m.showSnackBar(
         avisoSnack(
           content: Text('Reporte $formato generado'),
@@ -71,8 +71,8 @@ class _EstadoReportes extends State<PantallaReportes> {
               color: ColoresApp.navy,
             ),
           ),
-          const Text(
-            'Resumen del ciclo $periodoSimulado',
+          Text(
+            'Resumen del ciclo $periodoActual',
             style: TextStyle(color: Colors.black54, fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -126,7 +126,7 @@ class _EstadoReportes extends State<PantallaReportes> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Inscripciones por actividad',
+                    'Inscripciones por taller',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 14),
@@ -211,7 +211,7 @@ class _EstadoReportes extends State<PantallaReportes> {
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          '$con60 de ${alumnos.length} alumnos ya completaron su actividad paraescolar.',
+                          '$con60 de ${alumnos.length} alumnos ya completaron su taller paraescolar.',
                           style: const TextStyle(
                             color: Colors.black54,
                             fontSize: 12,

@@ -23,7 +23,7 @@ class EstructuraAdmin extends StatelessWidget {
         NavigationDestination(
           icon: Icon(Icons.calendar_today_outlined),
           selectedIcon: Icon(Icons.calendar_today),
-          label: 'Actividades',
+          label: 'Taller',
         ),
         NavigationDestination(
           icon: Icon(Icons.groups_outlined),

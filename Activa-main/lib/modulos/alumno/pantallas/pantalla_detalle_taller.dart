@@ -15,12 +15,18 @@ import '../../../nucleo/servicios/sonidos.dart';
 import '../../../nucleo/componentes/dialogo_confirmar.dart';
 import '../../../nucleo/servicios/documentos.dart';
 
-class PantallaDetalleActividad extends StatelessWidget {
-  const PantallaDetalleActividad({super.key, required this.tallerId});
+class PantallaDetalleTaller extends StatelessWidget {
+  const PantallaDetalleTaller({super.key, required this.tallerId});
+
   final int tallerId;
 
-        void _snack(BuildContext context, String msg, {TipoToast tipo = TipoToast.error}) =>
-      ScaffoldMessenger.of(context).showSnackBar(avisoSnack(content: Text(msg), tipo: tipo));
+  void _snack(
+    BuildContext context,
+    String msg, {
+    TipoToast tipo = TipoToast.error,
+  }) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(avisoSnack(content: Text(msg), tipo: tipo));
 
   Future<void> _baja(BuildContext context, Taller t) async {
     final s = context.read<EstadoApp>();
@@ -247,8 +253,7 @@ class PantallaDetalleActividad extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  if (inscrito) ...[
-                    const SizedBox(height: 10),
+                  if (inscrito)
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: ColoresApp.danger,
@@ -259,30 +264,51 @@ class PantallaDetalleActividad extends StatelessWidget {
                       onPressed: () => _baja(context, t),
                       icon: const Icon(Icons.exit_to_app_rounded),
                       label: const Text('Darme de baja'),
+                    )
+                  else
+                    FilledButton(
+                      onPressed: t.hayCupo ? () => _confirm(context, t) : null,
+                      child: Text(
+                        t.hayCupo ? 'Inscribirme' : 'Sin cupo disponible',
+                      ),
                     ),
-                  ],
+
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                                           _BotonAccion(Icons.calendar_today, 'Agregar al calendario', () async {
-                        final ok = await Documentos.agregarAlCalendario(t);
-                        if (context.mounted) {
-                          _snack(
-                            context,
-                            ok ? 'Abriendo tu calendario' : 'No se pudo abrir el calendario',
-                            tipo: ok ? TipoToast.info : TipoToast.error,
-                          );
-                        }
-                      }),
+                      _BotonAccion(
+                        Icons.calendar_today,
+                        'Agregar al calendario',
+                        () async {
+                          final ok = await Documentos.agregarAlCalendario(t);
+                          if (context.mounted) {
+                            _snack(
+                              context,
+                              ok
+                                  ? 'Abriendo tu calendario'
+                                  : 'No se pudo abrir el calendario',
+                              tipo: ok ? TipoToast.info : TipoToast.error,
+                            );
+                          }
+                        },
+                      ),
                       const SizedBox(width: 8),
-                      _BotonAccion(Icons.location_on, 'Ver ubicación', () async {
-                        final ok = await Documentos.verUbicacion(t);
-                        if (!ok && context.mounted) {
-                          _snack(context, 'No se pudo abrir el mapa');
-                        }
-                      }),
+                      _BotonAccion(
+                        Icons.location_on,
+                        'Ver ubicación',
+                        () async {
+                          final ok = await Documentos.verUbicacion(t);
+                          if (!ok && context.mounted) {
+                            _snack(context, 'No se pudo abrir el mapa');
+                          }
+                        },
+                      ),
                       const SizedBox(width: 8),
-                      _BotonAccion(Icons.share, 'Compartir', () => Documentos.compartir(context, t)),
+                      _BotonAccion(
+                        Icons.share,
+                        'Compartir',
+                        () => Documentos.compartir(context, t),
+                      ),
                     ],
                   ),
                 ],

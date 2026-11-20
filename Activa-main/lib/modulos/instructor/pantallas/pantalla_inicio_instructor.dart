@@ -9,7 +9,6 @@ import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/utilidades/formateadores.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
 import '../../alumno/componentes/miniatura_taller.dart';
 
 import '../../../nucleo/componentes/accesos_rapidos.dart';
@@ -70,16 +69,17 @@ class PantallaInicioInstructor extends StatelessWidget {
             children: [
               _Estadistica(Icons.groups, '$alumnos', 'Alumnos'),
               const SizedBox(width: 10),
-              const _Estadistica(
+              _Estadistica(
                 Icons.check_circle,
-                '$asistenciaInstructorSimulado %',
+                '${s.porcentajeAsistenciaInstructor} %',
                 'Asistencia',
               ),
               const SizedBox(width: 10),
               _Estadistica(Icons.apps, '${grupos.length}', 'Grupos'),
             ],
           ),
-          const AccesoChats(), const SizedBox(height: 14),
+          const AccesoChats(),
+          const SizedBox(height: 14),
           const SizedBox(height: 24),
           Row(
             children: [

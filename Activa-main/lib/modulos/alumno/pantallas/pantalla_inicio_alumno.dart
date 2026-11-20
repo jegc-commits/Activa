@@ -14,7 +14,7 @@ import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../nucleo/componentes/aparicion_suave.dart';
 import '../../../nucleo/utilidades/formateadores.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
+import '../../../datos/constantes_app.dart';
 import '../componentes/miniatura_taller.dart';
 import '../componentes/tarjeta_taller.dart';
 
@@ -41,13 +41,13 @@ class PantallaInicioAlumno extends StatelessWidget {
     // progreso de 0.0 a 1.0 para el círculo
     final progreso = (horas / metaHoras).clamp(0.0, 1.0).toDouble();
     // busca una actividad con cupo y donde NO esté inscrito
-    final sugerido = state.talleres.firstWhere(
-      (t) => t.hayCupo && !state.estaInscrito(t.id),
-      // si no hay ninguna, usa la primera de la lista
-      orElse: () => state.talleres.first,
-    );
-    // toma el aviso más reciente
-    final aviso = state.avisos.first;
+    final sugerido =
+        state.talleres
+            .where((t) => t.hayCupo && !state.estaInscrito(t.id))
+            .firstOrNull ??
+        state.talleres.firstOrNull;
+    // toma el aviso más reciente (si hay)
+    final aviso = state.avisos.firstOrNull;
 
     // listView permite hacer scroll, padding 0 porque el encabezado va hasta los bordes
     return ListView(
@@ -103,23 +103,35 @@ class PantallaInicioAlumno extends StatelessWidget {
                         ),
                         // Avatar con borde clarito
                         GestureDetector(
-                        onTap: () => context.go('/alumno/perfil'),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            AvatarActiva(rol: Rol.alumno, iniciales: iniciales, radio: 25, borde: true),
-                            Positioned(
-                              right: -2,
-                              bottom: -2,
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                child: const Icon(Icons.person, size: 12, color: ColoresApp.primary),
+                          onTap: () => context.go('/alumno/perfil'),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              AvatarActiva(
+                                rol: Rol.alumno,
+                                iniciales: iniciales,
+                                radio: 25,
+                                borde: true,
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                right: -2,
+                                bottom: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.person,
+                                    size: 12,
+                                    color: ColoresApp.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                       ],
                     ),
                   ),
@@ -200,9 +212,20 @@ class PantallaInicioAlumno extends StatelessWidget {
                                     children: [
                                       Text(
                                         context.tr('inicio.progreso'),
-                                        style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12.5),
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.75,
+                                          ),
+                                          fontSize: 12.5,
+                                        ),
                                       ),
-                                      Icon(Icons.chevron_right_rounded, size: 16, color: Colors.white.withValues(alpha: 0.75)),
+                                      Icon(
+                                        Icons.chevron_right_rounded,
+                                        size: 16,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.75,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -289,7 +312,7 @@ class PantallaInicioAlumno extends StatelessWidget {
 
               // Título de la actividad sugerida
               Text(
-                'Actividad sugerida',
+                'Talleres sugerida',
                 style: TextStyle(
                   fontFamily: FuentesApp.century,
                   fontSize: 16,
@@ -299,60 +322,65 @@ class PantallaInicioAlumno extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               // Tarjeta de la actividad sugerida
-              AparicionSuave(
-                delay: const Duration(milliseconds: 300),
-                child: TarjetaApp(
-                  // Ahora sí abre el detalle de la actividad (ya no va a Explorar)
-                  onTap: () => context.push('/actividad/${sugerido.id}'),
-                  child: Row(
-                    children: [
-                      // Cuadrito con el ícono de la categoría
-                      MiniaturaTaller(sugerido, size: 64),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Nombre de la actividad
-                            Text(
-                              sugerido.nombre,
-                              style: TextStyle(
-                                fontFamily: FuentesApp.century,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
+              if (sugerido == null)
+                const TarjetaApp(
+                  child: Text('Todavía no hay talleres disponibles.'),
+                )
+              else
+                AparicionSuave(
+                  delay: const Duration(milliseconds: 300),
+                  child: TarjetaApp(
+                    // Ahora sí abre el detalle de la actividad (ya no va a Explorar)
+                    onTap: () => context.push('/taller/${sugerido.id}'),
+                    child: Row(
+                      children: [
+                        // Cuadrito con el ícono de la categoría
+                        MiniaturaTaller(sugerido, size: 64),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Nombre de la actividad
+                              Text(
+                                sugerido.nombre,
+                                style: TextStyle(
+                                  fontFamily: FuentesApp.century,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
                               ),
-                            ),
-                            // Días y horario
-                            Text(
-                              sugerido.horarioTexto,
-                              style: const TextStyle(
-                                color: ColoresApp.muted,
-                                fontSize: 12,
+                              // Días y horario
+                              Text(
+                                sugerido.horarioTexto,
+                                style: const TextStyle(
+                                  color: ColoresApp.muted,
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
-                            // Lugar donde se da
-                            Text(
-                              sugerido.lugar,
-                              style: const TextStyle(
-                                color: ColoresApp.muted,
-                                fontSize: 12,
+                              // Lugar donde se da
+                              Text(
+                                sugerido.lugar,
+                                style: const TextStyle(
+                                  color: ColoresApp.muted,
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            // Lugares disponibles
-                            EtiquetaCupo(sugerido),
-                          ],
+                              const SizedBox(height: 4),
+                              // Lugares disponibles
+                              EtiquetaCupo(sugerido),
+                            ],
+                          ),
                         ),
-                      ),
-                      // Flechita de la derecha
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: ColoresApp.muted,
-                      ),
-                    ],
+                        // Flechita de la derecha
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: ColoresApp.muted,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(height: 26),
 
               // Título de avisos con "Ver todos"
@@ -362,55 +390,58 @@ class PantallaInicioAlumno extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               // Tarjeta del aviso más reciente
-              AparicionSuave(
-                delay: const Duration(milliseconds: 400),
-                child: TarjetaApp(
-                  onTap: () => context.go('/alumno/avisos'),
-                  child: Row(
-                    children: [
-                      // círculo con campanita
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: ColoresApp.warning.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
+              if (aviso == null)
+                const TarjetaApp(child: Text('No hay avisos por ahora.'))
+              else
+                AparicionSuave(
+                  delay: const Duration(milliseconds: 400),
+                  child: TarjetaApp(
+                    onTap: () => context.go('/alumno/avisos'),
+                    child: Row(
+                      children: [
+                        // círculo con campanita
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: ColoresApp.warning.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.notifications_rounded,
+                            color: ColoresApp.warning,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.notifications_rounded,
-                          color: ColoresApp.warning,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Título del aviso
-                            Text(
-                              aviso.titulo,
-                              style: TextStyle(
-                                fontFamily: FuentesApp.century,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Título del aviso
+                              Text(
+                                aviso.titulo,
+                                style: TextStyle(
+                                  fontFamily: FuentesApp.century,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                            // Mensaje, máximo 2 renglones
-                            Text(
-                              aviso.mensaje,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: ColoresApp.muted,
-                                fontSize: 12,
+                              // Mensaje, máximo 2 renglones
+                              Text(
+                                aviso.mensaje,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: ColoresApp.muted,
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

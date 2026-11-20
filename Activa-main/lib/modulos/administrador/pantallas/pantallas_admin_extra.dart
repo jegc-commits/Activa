@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
+import '../../../datos/constantes_app.dart';
 import '../../../modelos/enums.dart';
 import '../../../nucleo/componentes/avisos.dart';
 import '../../../nucleo/componentes/boton_activa.dart';
@@ -56,13 +56,13 @@ class _EstadoPeriodoEscolar extends State<PantallaPeriodoEscolar> {
           TarjetaApp(
             child: Column(
               children: [
-                _fila(Icons.calendar_today, 'Periodo', periodoSimulado),
+                _fila(Icons.calendar_today, 'Periodo', periodoActual),
                 const Divider(height: 1),
                 _fila(Icons.timer, 'Meta de horas', '$metaHoras horas'),
                 const Divider(height: 1),
                 _fila(
                   Icons.groups,
-                  'Actividades',
+                  'Talleres',
                   '${context.watch<EstadoApp>().talleres.length}',
                 ),
               ],
@@ -122,13 +122,12 @@ class PantallaValidacionHoras extends StatefulWidget {
 
 class _EstadoValidacionHoras extends State<PantallaValidacionHoras> {
   // lista de horas reportadas por instructores (de ejemplo)
-  late final List<({String alumno, String actividad, int horas})> _pendientes =
-      [
-        (alumno: 'Ana Sofía Ramírez', actividad: 'Voleibol', horas: 6),
-        (alumno: 'Diego A. Torres', actividad: 'Ajedrez', horas: 4),
-        (alumno: 'Fernanda Ibarra', actividad: 'Danza folclórica', horas: 8),
-        (alumno: 'Jorge L. Camacho', actividad: 'Teatro', horas: 5),
-      ];
+  late final List<({String alumno, String taller, int horas})> _pendientes = [
+    (alumno: 'Ana Sofía Ramírez', taller: 'Voleibol', horas: 6),
+    (alumno: 'Diego A. Torres', taller: 'Ajedrez', horas: 4),
+    (alumno: 'Fernanda Ibarra', taller: 'Danza folclórica', horas: 8),
+    (alumno: 'Jorge L. Camacho', taller: 'Teatro', horas: 5),
+  ];
 
   void _resolver(int i, bool aprobar) {
     final p = _pendientes[i];
@@ -175,7 +174,7 @@ class _EstadoValidacionHoras extends State<PantallaValidacionHoras> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${p.actividad} · ${p.horas} horas reportadas',
+                        '${p.taller} · ${p.horas} horas reportadas',
                         style: const TextStyle(
                           color: ColoresApp.muted,
                           fontSize: 13,
@@ -275,11 +274,15 @@ class PantallaAvisosGenerales extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(a.mensaje, style: const TextStyle(fontSize: 13)),
                   const SizedBox(height: 6),
+                  // Si el aviso no tiene taller (es global), muestra "Aviso general"
                   Text(
-                    s.tallerPorId(a.tallerId).nombre,
+                    a.tallerId == null
+                        ? 'Aviso general'
+                        : s.tallerPorId(a.tallerId!).nombre,
                     style: const TextStyle(
                       color: ColoresApp.primary,
                       fontSize: 12,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -302,7 +305,7 @@ class _HojaNuevoAviso extends StatefulWidget {
 class _EstadoHojaNuevoAviso extends State<_HojaNuevoAviso> {
   final _titulo = TextEditingController();
   final _mensaje = TextEditingController();
-  int? _tallerId; // actividad elegida
+  int? _tallerId;
 
   @override
   void dispose() {
@@ -312,16 +315,19 @@ class _EstadoHojaNuevoAviso extends State<_HojaNuevoAviso> {
   }
 
   void _publicar() {
-    if (_tallerId == null ||
-        _titulo.text.trim().isEmpty ||
-        _mensaje.text.trim().isEmpty) {
+    // Solo validamos que el título y el mensaje no estén vacíos.
+    // El taller ahora es opcional.
+    if (_titulo.text.trim().isEmpty || _mensaje.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        avisoSnack(content: const Text('Completa todos los campos requeridos')),
+        avisoSnack(
+          content: const Text('El título y el mensaje son obligatorios'),
+        ),
       );
       return;
     }
+
     context.read<EstadoApp>().publicarAviso(
-      tallerId: _tallerId!,
+      tallerId: _tallerId, // Acepta null si es aviso general
       tipo: TipoAviso.informativo,
       titulo: _titulo.text,
       mensaje: _mensaje.text,
@@ -356,15 +362,19 @@ class _EstadoHojaNuevoAviso extends State<_HojaNuevoAviso> {
               ),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<int>(
+            DropdownButtonFormField<int?>(
               initialValue: _tallerId,
               decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.groups),
-                hintText: 'Actividad',
+                prefixIcon: Icon(Icons.campaign_rounded),
+                labelText: 'Taller (Opcional)',
               ),
               items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Todos (Aviso general)'),
+                ),
                 for (final t in talleres)
-                  DropdownMenuItem(value: t.id, child: Text(t.nombre)),
+                  DropdownMenuItem<int?>(value: t.id, child: Text(t.nombre)),
               ],
               onChanged: (v) => setState(() => _tallerId = v),
             ),

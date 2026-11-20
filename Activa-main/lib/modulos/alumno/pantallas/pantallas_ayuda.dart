@@ -63,13 +63,13 @@ class PantallaFavoritos extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Toca el corazón en cualquier actividad para guardarla aquí.',
+                    'Toca el corazón en cualquier taller para guardarla aquí.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: ColoresApp.muted, fontSize: 13),
                   ),
                   const SizedBox(height: 24),
                   BotonActiva(
-                    etiqueta: 'Explorar actividades',
+                    etiqueta: 'Explorar talleres',
                     icono: Icons.arrow_forward_rounded,
                     alPresionar: () => context.go('/alumno/explorar'),
                   ),
@@ -110,27 +110,44 @@ class PantallaIdioma extends StatelessWidget {
           TarjetaApp(
             padding: EdgeInsets.zero,
             child: Column(
-              children: ListTile.divideTiles(context: context, tiles: [
-                for (final e in detalles.entries)
-                  ListTile(
-                    leading: Icon(Icons.language_rounded,
-                        color: ses.idioma == e.key ? ColoresApp.primary : ColoresApp.muted),
-                    title: Text(e.value,
+              children: ListTile.divideTiles(
+                context: context,
+                tiles: [
+                  for (final e in detalles.entries)
+                    ListTile(
+                      leading: Icon(
+                        Icons.language_rounded,
+                        color: ses.idioma == e.key
+                            ? ColoresApp.primary
+                            : ColoresApp.muted,
+                      ),
+                      title: Text(
+                        e.value,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: ses.idioma == e.key ? ColoresApp.navy : ColoresApp.muted,
-                        )),
-                    trailing: ses.idioma == e.key
-                        ? const Icon(Icons.check_circle_rounded, color: ColoresApp.teal)
-                        : null,
-                    onTap: () {
-                      ses.cambiarIdioma(e.key);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        avisoSnack(content: Text('${e.value} ✓'), tipo: TipoToast.exito),
-                      );
-                    },
-                  ),
-              ]).toList(),
+                          color: ses.idioma == e.key
+                              ? ColoresApp.navy
+                              : ColoresApp.muted,
+                        ),
+                      ),
+                      trailing: ses.idioma == e.key
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: ColoresApp.teal,
+                            )
+                          : null,
+                      onTap: () {
+                        ses.cambiarIdioma(e.key);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          avisoSnack(
+                            content: Text('${e.value} ✓'),
+                            tipo: TipoToast.exito,
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ).toList(),
             ),
           ),
           const SizedBox(height: 12),
@@ -203,7 +220,7 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
         _bloque(
           Icons.badge_outlined,
           'Qué datos usamos',
-          'Tu nombre, número de control, grupo, correo institucional, las actividades en las que te inscribes y tu asistencia.',
+          'Tu nombre, número de control, grupo, correo institucional, los talleres en las que te inscribes y tu asistencia.',
         ),
         _bloque(
           Icons.flag_outlined,
@@ -213,7 +230,7 @@ class PantallaAvisoPrivacidad extends StatelessWidget {
         _bloque(
           Icons.lock_outline_rounded,
           'Cómo los protegemos',
-          'Solo el personal responsable de las actividades paraescolares puede consultar tu información.',
+          'Solo el personal responsable de las talleres paraescolares puede consultar tu información.',
         ),
         _bloque(
           Icons.contact_support_outlined,
@@ -286,13 +303,13 @@ class PantallaAyuda extends StatelessWidget {
           child: Column(
             children: [
               _pregunta(
-                '¿Cómo me inscribo a una actividad?',
-                'Entra a Explorar, elige la actividad y toca "Inscribirme". Al confirmar recibirás tu comprobante con folio y código QR.',
+                '¿Cómo me inscribo a una talleres?',
+                'Entra a Explorar, elige el taller y toca "Inscribirme". Al confirmar recibirás tu comprobante con folio y código QR.',
               ),
               const Divider(),
               _pregunta(
                 '¿Cómo me doy de baja?',
-                'En Mis actividades abre la actividad y elige la opción para cancelar tu inscripción.',
+                'En Mis talleres abre el taller y elige la opción para cancelar tu inscripción.',
               ),
               const Divider(),
               _pregunta(
@@ -302,7 +319,7 @@ class PantallaAyuda extends StatelessWidget {
               const Divider(),
               _pregunta(
                 '¿Cuándo se habilita la constancia final?',
-                'Cuando completes las 60 horas de tu actividad paraescolar.',
+                'Cuando completes las 60 horas de tu taller paraescolar.',
               ),
             ],
           ),

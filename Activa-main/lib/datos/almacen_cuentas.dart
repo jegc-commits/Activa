@@ -1,26 +1,22 @@
 // ===================================================================
 // almacen_cuentas.dart
 // Guarda las cuentas (alumnos registrados e instructores creados por el
-// admin) en un archivo JSON. Las contraseñas NO se guardan en texto:
-// solo la sal y el hash (SHA-256).
+// admin) en la base de datos SQLite de ACTIVA. Las contraseñas NO se
+// guardan en texto: solo la sal y el hash (SHA-256).
 //
-//  - Android / iOS / Windows: archivo activa_cuentas.json en la carpeta
-//    de documentos de la app (path_provider).
-//  - Web (Chrome): no se pueden escribir archivos, así que el mismo JSON
-//    se guarda como texto en shared_preferences.
+// Este archivo conserva la misma API que usaban las pantallas, así que
+// el login y el registro siguen funcionando sin cambios.
 // ===================================================================
 
-import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../modelos/enums.dart';
 import '../modelos/usuario.dart';
+import 'bd/base_datos.dart';
+import 'bd/repositorio_activa.dart';
+import 'bd/seguridad.dart';
 
 class CuentaGuardada {
   CuentaGuardada({
@@ -87,49 +83,6 @@ class CuentaGuardada {
     activo: activo,
   );
 
-  Map<String, dynamic> aJson() => {
-    'id': id,
-    'rol': rol.name,
-    'usuario': usuario,
-    'correo': correo,
-    'nombre': nombre,
-    'apellidoPaterno': apellidoPaterno,
-    'apellidoMaterno': apellidoMaterno,
-    'telefono': telefono,
-    'especialidad': especialidad,
-    'numeroControl': numeroControl,
-    'grupo': grupo,
-    'carrera': carrera,
-    'tallerIds': tallerIds,
-    'activo': activo,
-    'debeCambiarContrasena': debeCambiarContrasena,
-    'sal': sal,
-    'hash': hash,
-  };
-
-  factory CuentaGuardada.deJson(Map<String, dynamic> j) => CuentaGuardada(
-    id: j['id'] as int,
-    rol: Rol.values.firstWhere(
-      (r) => r.name == j['rol'],
-      orElse: () => Rol.alumno,
-    ),
-    usuario: (j['usuario'] ?? '') as String,
-    correo: (j['correo'] ?? '') as String,
-    nombre: (j['nombre'] ?? '') as String,
-    apellidoPaterno: (j['apellidoPaterno'] ?? '') as String,
-    apellidoMaterno: (j['apellidoMaterno'] ?? '') as String,
-    telefono: (j['telefono'] ?? '') as String,
-    especialidad: (j['especialidad'] ?? '') as String,
-    numeroControl: (j['numeroControl'] ?? '') as String,
-    grupo: (j['grupo'] ?? '') as String,
-    carrera: (j['carrera'] ?? '') as String,
-    tallerIds: [for (final x in (j['tallerIds'] as List? ?? [])) x as int],
-    activo: (j['activo'] ?? true) as bool,
-    debeCambiarContrasena: (j['debeCambiarContrasena'] ?? false) as bool,
-    sal: (j['sal'] ?? '') as String,
-    hash: (j['hash'] ?? '') as String,
-  );
-
   /// "profe.lopez@utng.edu.mx" -> "profe_lopez" (válido para validarUsuario)
   static String usuarioDesdeCorreo(String correo) {
     var u = correo
@@ -146,67 +99,42 @@ class CuentaGuardada {
 }
 
 class AlmacenCuentas {
-  AlmacenCuentas._(this._cuentas, this._siguienteId);
+  AlmacenCuentas._(this._cuentas, this._siguienteId, this._repo);
 
   final List<CuentaGuardada> _cuentas;
+  final RepositorioActiva _repo;
   int _siguienteId;
   Future<bool> _cola = Future.value(true); // escrituras una tras otra
-
-  static const _clave = 'activa_cuentas';
-  static const _nombreArchivo = 'activa_cuentas.json';
 
   // ------------------------------------------------ carga / guardado
   static Future<AlmacenCuentas> cargar() async {
     try {
-      final texto = await _leer();
-      if (texto != null && texto.trim().isNotEmpty) {
-        final m = jsonDecode(texto) as Map<String, dynamic>;
-        final lista = [
-          for (final c in (m['cuentas'] as List? ?? []))
-            CuentaGuardada.deJson(c as Map<String, dynamic>),
-        ];
-        final maxId = lista.fold<int>(0, (a, c) => c.id > a ? c.id : a);
-        final guardado = (m['siguienteId'] as int?) ?? 1000;
-        return AlmacenCuentas._(
-          lista,
-          [guardado, maxId + 1, 1000].reduce((a, b) => a > b ? a : b),
-        );
-      }
+      final db = await BaseDatos.instancia.abrir();
+      final repo = RepositorioActiva(db);
+      final lista = await repo.cargarCuentas();
+      final maxId = lista.fold<int>(0, (a, c) => c.id > a ? c.id : a);
+      final guardado = await repo.siguienteIdUsuario();
+      return AlmacenCuentas._(
+        lista,
+        [guardado, maxId + 1, 1000].reduce((a, b) => a > b ? a : b),
+        repo,
+      );
     } catch (e) {
       debugPrint('No se pudieron leer las cuentas guardadas: $e');
+      return AlmacenCuentas._(
+        [],
+        1000,
+        RepositorioActiva(await BaseDatos.instancia.abrir()),
+      );
     }
-    return AlmacenCuentas._([], 1000);
   }
 
-  static Future<File> _archivo() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}${Platform.pathSeparator}$_nombreArchivo');
-  }
-
-  static Future<String?> _leer() async {
-    if (kIsWeb) {
-      return (await SharedPreferences.getInstance()).getString(_clave);
-    }
-    final f = await _archivo();
-    return await f.exists() ? await f.readAsString() : null;
-  }
-
-  /// Escribe todo el JSON. Devuelve false si no se pudo guardar.
+  /// Escribe todas las cuentas (y sus perfiles) en SQLite.
+  /// Devuelve false si no se pudo guardar.
   Future<bool> guardar() {
-    final texto = const JsonEncoder.withIndent('  ').convert({
-      'version': 1,
-      'siguienteId': _siguienteId,
-      'cuentas': [for (final c in _cuentas) c.aJson()],
-    });
     _cola = _cola.then((_) async {
       try {
-        if (kIsWeb) {
-          return (await SharedPreferences.getInstance()).setString(
-            _clave,
-            texto,
-          );
-        }
-        await (await _archivo()).writeAsString(texto, flush: true);
+        await _repo.guardarCuentas(_cuentas, siguienteId: _siguienteId);
         return true;
       } catch (e) {
         debugPrint('No se pudieron guardar las cuentas: $e');
@@ -247,7 +175,9 @@ class AlmacenCuentas {
   }
 
   bool correoTomado(String correo, {int? excepto}) => _cuentas.any(
-    (c) => c.id != excepto && c.correo.toLowerCase() == correo.trim().toLowerCase(),
+    (c) =>
+        c.id != excepto &&
+        c.correo.toLowerCase() == correo.trim().toLowerCase(),
   );
 
   bool controlTomado(String control, {int? excepto}) => _cuentas.any(
@@ -285,13 +215,6 @@ class AlmacenCuentas {
   }
 
   // ------------------------------------------------ contraseñas
-  static String _sal() {
-    final r = Random.secure();
-    return base64UrlEncode(List.generate(16, (_) => r.nextInt(256)));
-  }
-
-  static String _hash(String sal, String contrasena) =>
-      sha256.convert(utf8.encode('$sal:$contrasena')).toString();
 
   /// Guarda la contraseña (ya con hash). [temporal] = true obliga a
   /// cambiarla en el siguiente inicio de sesión.
@@ -300,13 +223,13 @@ class AlmacenCuentas {
     String contrasena, {
     bool temporal = false,
   }) {
-    c.sal = _sal();
-    c.hash = _hash(c.sal, contrasena);
+    c.sal = generarSal();
+    c.hash = hashContrasena(c.sal, contrasena);
     c.debeCambiarContrasena = temporal;
   }
 
   bool verificar(CuentaGuardada c, String contrasena) =>
-      c.hash.isNotEmpty && c.hash == _hash(c.sal, contrasena);
+      contrasenaCorrecta(c.sal, c.hash, contrasena);
 
   /// Contraseña temporal de 10 caracteres que cumple las reglas de la app
   /// (mayúscula, número y carácter especial). Sin letras ambiguas (O, 0, l, 1).

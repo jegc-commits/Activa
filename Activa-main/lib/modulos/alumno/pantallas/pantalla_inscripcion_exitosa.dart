@@ -7,6 +7,7 @@ import '../../../datos/estado_app.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../nucleo/servicios/documentos.dart';
 import '../../../nucleo/tema/tema_app.dart';
+import '../../../nucleo/utilidades/formateadores.dart';
 
 class PantallaInscripcionExitosa extends StatelessWidget {
   const PantallaInscripcionExitosa({super.key, required this.folio});
@@ -81,10 +82,14 @@ class PantallaInscripcionExitosa extends StatelessWidget {
                 children: [
                   _Fila('Nombre', ins.alumno.nombreCompleto),
                   _Fila('Número de control', ins.alumno.numeroControl),
-                  _Fila('Actividad', t.nombre),
+                  _Fila('talleres', t.nombre),
                   _Fila('Horario', t.horarioTexto.replaceAll(' | ', ' · ')),
                   _Fila('Lugar', t.lugar),
                   _Fila('Instructor', t.instructor.nombreCompleto),
+                  _Fila(
+                    'Fecha de inscripción',
+                    fechaLarga(ins.fechaInscripcion),
+                  ),
                   const Divider(height: 28),
                   Row(
                     children: [
@@ -148,7 +153,7 @@ class PantallaInscripcionExitosa extends StatelessWidget {
             const SizedBox(height: 20),
             FilledButton(
               onPressed: () => context.go('/alumno/actividades'),
-              child: const Text('Ver mis actividades'),
+              child: const Text('Ver mis Talleres'),
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(

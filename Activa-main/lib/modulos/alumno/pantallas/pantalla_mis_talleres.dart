@@ -5,15 +5,15 @@ import 'package:provider/provider.dart';
 import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/simulados/datos_simulados.dart';
+import '../../../datos/constantes_app.dart';
 import '../../../modelos/inscripcion.dart';
 import '../componentes/miniatura_taller.dart';
 import '../../../nucleo/componentes/avisos.dart';
 
 import '../../../nucleo/servicios/documentos.dart';
 
-class PantallaMisActividades extends StatelessWidget {
-  const PantallaMisActividades({super.key});
+class PantallaMisTalleres extends StatelessWidget {
+  const PantallaMisTalleres({super.key});
 
   /// Solo pregunta; no borra nada todavía.
   Future<bool> _confirmarBaja(BuildContext context, Inscripcion i) async {
@@ -41,8 +41,6 @@ class PantallaMisActividades extends StatelessWidget {
             onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('Darme de baja'),
           ),
-
-          
         ],
       ),
     );
@@ -68,7 +66,7 @@ class PantallaMisActividades extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           const Text(
-            'Mis actividades',
+            'Mis talleres',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w800,
@@ -79,7 +77,7 @@ class PantallaMisActividades extends StatelessWidget {
           Text(
             lista.isEmpty
                 ? 'Aquí aparecerán tus talleres y clubes'
-                : 'Tienes ${lista.length} ${lista.length == 1 ? 'actividad' : 'actividades'} activas',
+                : 'Tienes ${lista.length} ${lista.length == 1 ? 'taller' : 'talleres'} activas',
             style: const TextStyle(color: Colors.black54),
           ),
           const SizedBox(height: 18),
@@ -151,8 +149,10 @@ class PantallaMisActividades extends StatelessWidget {
                 duration: const Duration(milliseconds: 1300),
                 curve: Curves.easeOutCubic,
                 builder: (_, v, __) => Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -226,9 +226,13 @@ class PantallaMisActividades extends StatelessWidget {
           children: [
             Icon(Icons.exit_to_app_rounded, color: Colors.white),
             SizedBox(height: 2),
-            Text('Baja',
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w700)),
+            Text(
+              'Baja',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),
@@ -253,22 +257,29 @@ class PantallaMisActividades extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.access_time_rounded,
-                          size: 14, color: Colors.black45),
+                      const Icon(
+                        Icons.access_time_rounded,
+                        size: 14,
+                        color: Colors.black45,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           i.taller.horarioTexto.replaceAll(' | ', ' · '),
                           style: const TextStyle(
-                              color: Colors.black54, fontSize: 12),
+                            color: Colors.black54,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: ColoresApp.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
@@ -285,8 +296,10 @@ class PantallaMisActividades extends StatelessWidget {
                 ],
               ),
             ),
-                        PopupMenuButton<String>(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            PopupMenuButton<String>(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
               onSelected: (v) async {
                 if (v == 'ver') {
                   context.push('/inscripcion/${i.folio}');
@@ -296,34 +309,45 @@ class PantallaMisActividades extends StatelessWidget {
                     nombreDoc: 'Comprobante ${i.folio}',
                     generar: () => Documentos.comprobanteInscripcion(i),
                   );
-                } else if (await _confirmarBaja(context, i) && context.mounted) {
+                } else if (await _confirmarBaja(context, i) &&
+                    context.mounted) {
                   _cancelar(context, i);
                 }
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(
                   value: 'ver',
-                  child: Row(children: [
-                    Icon(Icons.receipt_long_rounded, size: 20),
-                    SizedBox(width: 10),
-                    Text('Ver comprobante'),
-                  ]),
+                  child: Row(
+                    children: [
+                      Icon(Icons.receipt_long_rounded, size: 20),
+                      SizedBox(width: 10),
+                      Text('Ver comprobante'),
+                    ],
+                  ),
                 ),
                 PopupMenuItem(
                   value: 'pdf',
-                  child: Row(children: [
-                    Icon(Icons.picture_as_pdf_rounded, size: 20),
-                    SizedBox(width: 10),
-                    Text('Descargar comprobante'),
-                  ]),
+                  child: Row(
+                    children: [
+                      Icon(Icons.picture_as_pdf_rounded, size: 20),
+                      SizedBox(width: 10),
+                      Text('Descargar comprobante'),
+                    ],
+                  ),
                 ),
                 PopupMenuItem(
                   value: 'baja',
-                  child: Row(children: [
-                    Icon(Icons.exit_to_app_rounded, size: 20, color: Color(0xFFE5484D)),
-                    SizedBox(width: 10),
-                    Text('Darme de baja'),
-                  ]),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.exit_to_app_rounded,
+                        size: 20,
+                        color: Color(0xFFE5484D),
+                      ),
+                      SizedBox(width: 10),
+                      Text('Darme de baja'),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -346,12 +370,15 @@ class PantallaMisActividades extends StatelessWidget {
               color: ColoresApp.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.sports_volleyball_rounded,
-                size: 54, color: ColoresApp.primary),
+            child: const Icon(
+              Icons.sports_volleyball_rounded,
+              size: 54,
+              color: ColoresApp.primary,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
-            'Aún no estás inscrito en ninguna actividad',
+            'Aún no estás inscrito en ninguna taller',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontWeight: FontWeight.w700,
@@ -367,7 +394,7 @@ class PantallaMisActividades extends StatelessWidget {
             ),
             onPressed: () => context.go('/alumno/explorar'),
             icon: const Icon(Icons.search_rounded),
-            label: const Text('Explorar actividades'),
+            label: const Text('Explorar talleres'),
           ),
         ],
       ),
@@ -389,7 +416,10 @@ class _Aparece extends StatelessWidget {
       curve: Curves.easeOutCubic,
       builder: (_, v, hijo) => Opacity(
         opacity: v,
-        child: Transform.translate(offset: Offset(0, 24 * (1 - v)), child: hijo),
+        child: Transform.translate(
+          offset: Offset(0, 24 * (1 - v)),
+          child: hijo,
+        ),
       ),
       child: child,
     );

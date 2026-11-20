@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:file_saver/file_saver.dart';
@@ -11,7 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../datos/estado_app.dart';
-import '../../datos/simulados/datos_simulados.dart';
+import '../../datos/constantes_app.dart';
 import '../../modelos/inscripcion.dart';
 import '../../modelos/taller.dart';
 import '../../modelos/usuario.dart';
@@ -40,11 +39,17 @@ Future<void> descargarPdfConfirmando(
   try {
     await generar();
     m.showSnackBar(
-      avisoSnack(content: const Text('Comprobante descargado'), tipo: TipoToast.exito),
+      avisoSnack(
+        content: const Text('Comprobante descargado'),
+        tipo: TipoToast.exito,
+      ),
     );
   } catch (_) {
     m.showSnackBar(
-      avisoSnack(content: const Text('No se pudo generar el PDF'), tipo: TipoToast.error),
+      avisoSnack(
+        content: const Text('No se pudo generar el PDF'),
+        tipo: TipoToast.error,
+      ),
     );
   }
 }
@@ -57,59 +62,74 @@ class Documentos {
   static String _l(String s) =>
       s.replaceAll('–', '-').replaceAll('—', '-').replaceAll('’', "'");
 
-  static pw.Widget _txt(String s,
-          {double size = 11, bool bold = false, PdfColor color = PdfColors.black}) =>
-      pw.Text(
-        _l(s),
-        style: pw.TextStyle(
-          fontSize: size,
-          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: color,
-        ),
-      );
+  static pw.Widget _txt(
+    String s, {
+    double size = 11,
+    bool bold = false,
+    PdfColor color = PdfColors.black,
+  }) => pw.Text(
+    _l(s),
+    style: pw.TextStyle(
+      fontSize: size,
+      fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+      color: color,
+    ),
+  );
 
   static pw.Widget _encabezado(String titulo) => pw.Container(
-        width: double.infinity,
-        padding: const pw.EdgeInsets.all(18),
-        decoration: pw.BoxDecoration(
-          color: _azul,
-          borderRadius: pw.BorderRadius.circular(12),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+    width: double.infinity,
+    padding: const pw.EdgeInsets.all(18),
+    decoration: pw.BoxDecoration(
+      color: _azul,
+      borderRadius: pw.BorderRadius.circular(12),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _txt('ACTIVA', size: 12, color: PdfColors.white),
+        _txt(titulo, size: 22, bold: true, color: PdfColors.white),
+      ],
+    ),
+  );
+
+  static pw.Widget _tabla(
+    List<List<String>> filas, {
+    bool encabezado = false,
+    bool etiquetas = false,
+  }) => pw.Table(
+    border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+    children: [
+      for (final (n, f) in filas.indexed)
+        pw.TableRow(
+          decoration: encabezado && n == 0
+              ? const pw.BoxDecoration(color: PdfColors.grey200)
+              : null,
           children: [
-            _txt('ACTIVA', size: 12, color: PdfColors.white),
-            _txt(titulo, size: 22, bold: true, color: PdfColors.white),
+            for (final (k, c) in f.indexed)
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: _txt(
+                  c,
+                  size: 10,
+                  bold: (encabezado && n == 0) || (etiquetas && k == 0),
+                ),
+              ),
           ],
         ),
-      );
-
-  static pw.Widget _tabla(List<List<String>> filas,
-          {bool encabezado = false, bool etiquetas = false}) =>
-      pw.Table(
-        border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-        children: [
-          for (final (n, f) in filas.indexed)
-            pw.TableRow(
-              decoration: encabezado && n == 0
-                  ? const pw.BoxDecoration(color: PdfColors.grey200)
-                  : null,
-              children: [
-                for (final (k, c) in f.indexed)
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(6),
-                    child: _txt(c,
-                        size: 10,
-                        bold: (encabezado && n == 0) || (etiquetas && k == 0)),
-                  ),
-              ],
-            ),
-        ],
-      );
+    ],
+  );
 
   static Future<void> _guardar(
-          Uint8List bytes, String nombre, String ext, MimeType tipo) =>
-      FileSaver.instance.saveFile(name: nombre, bytes: bytes, ext: ext, mimeType: tipo);
+    Uint8List bytes,
+    String nombre,
+    String ext,
+    MimeType tipo,
+  ) => FileSaver.instance.saveFile(
+    name: nombre,
+    bytes: bytes,
+    ext: ext,
+    mimeType: tipo,
+  );
 
   // ───────── PDF: comprobante de inscripción ─────────
   static Future<void> comprobanteInscripcion(Inscripcion i) async {
@@ -146,7 +166,11 @@ class Documentos {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _txt('Folio de inscripción', size: 10, color: PdfColors.grey700),
+                    _txt(
+                      'Folio de inscripción',
+                      size: 10,
+                      color: PdfColors.grey700,
+                    ),
                     _txt(i.folio, size: 22, bold: true, color: _navy),
                     pw.SizedBox(height: 4),
                     _txt('Presenta este código con tu instructor.', size: 10),
@@ -155,18 +179,32 @@ class Documentos {
               ],
             ),
             pw.Spacer(),
-            _txt('Generado por ACTIVA el ${fechaLarga(DateTime.now())}',
-                size: 9, color: PdfColors.grey700),
+            _txt(
+              'Generado por ACTIVA el ${fechaLarga(DateTime.now())}',
+              size: 9,
+              color: PdfColors.grey700,
+            ),
           ],
         ),
       ),
     );
-    await _guardar(await pdf.save(), 'Comprobante_${i.folio}', 'pdf', MimeType.pdf);
+    await _guardar(
+      await pdf.save(),
+      'Comprobante_${i.folio}',
+      'pdf',
+      MimeType.pdf,
+    );
   }
 
   // ───────── PDF: constancia de horas ─────────
-  static Future<void> constanciaHoras(Alumno a, int horas, {required bool finalDoc}) async {
-    final titulo = finalDoc ? 'Constancia final de horas' : 'Constancia parcial de horas';
+  static Future<void> constanciaHoras(
+    Alumno a,
+    int horas, {
+    required bool finalDoc,
+  }) async {
+    final titulo = finalDoc
+        ? 'Constancia final de horas'
+        : 'Constancia parcial de horas';
     final pdf = pw.Document();
     pdf.addPage(
       pw.Page(
@@ -182,13 +220,19 @@ class Documentos {
               ['Número de control', a.numeroControl],
               ['Carrera', a.carrera],
               ['Grupo', a.grupo],
-              ['Periodo', periodoSimulado],
+              ['Periodo', periodoActual],
               ['Horas acumuladas', '$horas de $metaHoras'],
-              ['Estatus', finalDoc ? 'Actividad paraescolar completada' : 'En proceso'],
+              [
+                'Estatus',
+                finalDoc ? 'Actividad paraescolar completada' : 'En proceso',
+              ],
             ], etiquetas: true),
             pw.Spacer(),
-            _txt('Generado por ACTIVA el ${fechaLarga(DateTime.now())}',
-                size: 9, color: PdfColors.grey700),
+            _txt(
+              'Generado por ACTIVA el ${fechaLarga(DateTime.now())}',
+              size: 9,
+              color: PdfColors.grey700,
+            ),
           ],
         ),
       ),
@@ -203,22 +247,22 @@ class Documentos {
 
   // ───────── Reportes (PDF / Word / Excel) ─────────
   static List<List<String>> _filasReporte(EstadoApp s) => [
-        ['Actividad', 'Instructor', 'Inscritos', 'Cupo', 'Ocupación'],
-        for (final t in s.talleres)
-          [
-            t.nombre,
-            t.instructor.nombreCompleto,
-            '${t.inscritos}',
-            '${t.cupoMaximo}',
-            '${t.cupoMaximo == 0 ? 0 : (t.inscritos * 100 / t.cupoMaximo).round()} %',
-          ],
-      ];
+    ['Actividad', 'Instructor', 'Inscritos', 'Cupo', 'Ocupación'],
+    for (final t in s.talleres)
+      [
+        t.nombre,
+        t.instructor.nombreCompleto,
+        '${t.inscritos}',
+        '${t.cupoMaximo}',
+        '${t.cupoMaximo == 0 ? 0 : (t.inscritos * 100 / t.cupoMaximo).round()} %',
+      ],
+  ];
 
   static List<String> _resumen(EstadoApp s) {
     final alumnos = s.todosAlumnos;
     final con60 = alumnos.where((a) => s.horasAlumno(a) >= metaHoras).length;
     return [
-      'Periodo: $periodoSimulado',
+      'Periodo: $periodoActual',
       'Total de inscripciones: ${s.totalInscripciones}',
       'Alumnos con $metaHoras horas: $con60 de ${alumnos.length}',
       'Generado el ${fechaLarga(DateTime.now())}',
@@ -248,7 +292,12 @@ class Documentos {
       );
       await _guardar(await pdf.save(), nombre, 'pdf', MimeType.pdf);
     } else if (formato == 'Word') {
-      await _guardar(_docx(titulo, resumen, filas), nombre, 'docx', MimeType.microsoftWord);
+      await _guardar(
+        _docx(titulo, resumen, filas),
+        nombre,
+        'docx',
+        MimeType.microsoftWord,
+      );
     } else {
       // "Excel": un .csv que Excel abre directo
       String celda(String c) => '"${c.replaceAll('"', '""')}"';
@@ -259,19 +308,34 @@ class Documentos {
   }
 
   // ───────── Word (.docx hecho a mano) ─────────
-  static String _x(String s) =>
-      s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  static String _x(String s) => s
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
 
-  static String _p(String t, {bool b = false, int sz = 22, String color = '000000'}) =>
+  static String _p(
+    String t, {
+    bool b = false,
+    int sz = 22,
+    String color = '000000',
+  }) =>
       '<w:p><w:r><w:rPr>${b ? '<w:b/>' : ''}<w:color w:val="$color"/><w:sz w:val="$sz"/></w:rPr>'
       '<w:t xml:space="preserve">${_x(t)}</w:t></w:r></w:p>';
 
-  static Uint8List _docx(String titulo, List<String> resumen, List<List<String>> filas) {
+  static Uint8List _docx(
+    String titulo,
+    List<String> resumen,
+    List<List<String>> filas,
+  ) {
     final cols = filas.first.length;
     final ancho = 9600 ~/ cols;
-    final tabla = StringBuffer('<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>');
+    final tabla = StringBuffer(
+      '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>',
+    );
     for (final l in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']) {
-      tabla.write('<w:$l w:val="single" w:sz="4" w:space="0" w:color="999999"/>');
+      tabla.write(
+        '<w:$l w:val="single" w:sz="4" w:space="0" w:color="999999"/>',
+      );
     }
     tabla.write('</w:tblBorders></w:tblPr><w:tblGrid>');
     tabla.write('<w:gridCol w:w="$ancho"/>' * cols);
@@ -297,7 +361,8 @@ class Documentos {
       ..write('<w:p/>');
 
     const cab = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-    final doc = '$cab<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+    final doc =
+        '$cab<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
         '<w:body>$cuerpo<w:sectPr><w:pgSz w:w="12240" w:h="15840"/>'
         '<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" '
         'w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>';
@@ -308,16 +373,20 @@ class Documentos {
       zip.addFile(ArchiveFile(ruta, d.length, d));
     }
 
-    add('[Content_Types].xml',
-        '$cab<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-        '<Default Extension="xml" ContentType="application/xml"/>'
-        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
-        '</Types>');
-    add('_rels/.rels',
-        '$cab<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
-        '</Relationships>');
+    add(
+      '[Content_Types].xml',
+      '$cab<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+          '<Default Extension="xml" ContentType="application/xml"/>'
+          '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+          '</Types>',
+    );
+    add(
+      '_rels/.rels',
+      '$cab<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+          '</Relationships>',
+    );
     add('word/document.xml', doc);
     return Uint8List.fromList(ZipEncoder().encode(zip)!);
   }
@@ -361,25 +430,29 @@ class Documentos {
         'dates': '${_g(d, h.inicioMin)}/${_g(d, h.finMin)}',
         'details': 'Actividad paraescolar con ${t.instructor.nombreCompleto}.',
         'location': '${t.lugar}, UTNG',
-        'recur': 'RRULE:FREQ=WEEKLY;BYDAY=$byday;COUNT=${t.horarios.length * 15}',
+        'recur':
+            'RRULE:FREQ=WEEKLY;BYDAY=$byday;COUNT=${t.horarios.length * 15}',
       }),
     );
   }
 
   static Future<bool> verUbicacion(Taller t) => _abrir(
-        Uri.https('www.google.com', '/maps/search/', {
-          'api': '1',
-          'query': 'Universidad Tecnológica del Norte de Guanajuato ${t.lugar}',
-        }),
-      );
+    Uri.https('www.google.com', '/maps/search/', {
+      'api': '1',
+      'query': 'Universidad Tecnológica del Norte de Guanajuato ${t.lugar}',
+    }),
+  );
 
   static Future<void> compartir(BuildContext context, Taller t) async {
-    final texto = '¡Únete a ${t.nombre} en ACTIVA!\n'
+    final texto =
+        '¡Únete a ${t.nombre} en ACTIVA!\n'
         '${t.horarioTexto.replaceAll(' | ', ' de ')}\n'
         'Lugar: ${t.lugar}\nInstructor: ${t.instructor.nombreCompleto}';
     var compartido = false;
     try {
-      final r = await SharePlus.instance.share(ShareParams(text: texto, subject: t.nombre));
+      final r = await SharePlus.instance.share(
+        ShareParams(text: texto, subject: t.nombre),
+      );
       compartido = r.status != ShareResultStatus.unavailable;
     } catch (_) {}
     if (compartido) return;
@@ -387,7 +460,10 @@ class Documentos {
     await Clipboard.setData(ClipboardData(text: texto));
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        avisoSnack(content: const Text('Datos copiados para compartir'), tipo: TipoToast.info),
+        avisoSnack(
+          content: const Text('Datos copiados para compartir'),
+          tipo: TipoToast.info,
+        ),
       );
     }
   }

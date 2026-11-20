@@ -3,7 +3,7 @@ import 'taller.dart';
 import 'usuario.dart';
 
 class Inscripcion {
-  final String folio; 
+  final String folio;
   final Alumno alumno;
   final Taller taller;
   final EstadoInscripcion estado;
@@ -16,6 +16,7 @@ class Inscripcion {
     this.estado = EstadoInscripcion.activa,
     required this.fechaInscripcion,
   });
+
   Inscripcion copyWith({EstadoInscripcion? estado, Taller? taller}) =>
       Inscripcion(
         folio: folio,
@@ -29,14 +30,15 @@ class Inscripcion {
 class Asistencia {
   final int id;
   final String folio; // FK a inscripción
-  final int actividadId;
+  final int tallerId; // FK a talleres (id_taller en el diagrama)
   final DateTime fecha;
   final bool presente;
   final int horas;
+
   const Asistencia({
     required this.id,
     required this.folio,
-    required this.actividadId,
+    required this.tallerId,
     required this.fecha,
     required this.presente,
     required this.horas,
@@ -45,14 +47,15 @@ class Asistencia {
 
 class Aviso {
   final int id;
-  final int tallerId;
+  final int? tallerId;
   final TipoAviso tipo;
   final String titulo;
   final String mensaje;
   final DateTime fecha;
+
   const Aviso({
     required this.id,
-    required this.tallerId,
+    this.tallerId,
     required this.tipo,
     required this.titulo,
     required this.mensaje,

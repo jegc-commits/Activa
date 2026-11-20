@@ -123,7 +123,7 @@ class TarjetaTaller extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           // Al tocar abre el detalle de la actividad
-          onTap: () => context.push('/actividad/${taller.id}'),
+          onTap: () => context.push('/taller/${taller.id}'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

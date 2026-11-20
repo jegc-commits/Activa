@@ -1,15 +1,15 @@
 // ===================================================================
 // sesion.dart
-// quien entro a la app (rol, usuario, foto, idioma) y el acceso con
-// cuentas guardadas (alumnos registrados e instructores del admin).
-// las cuentas guardadas viven en AlmacenCuentas (archivo JSON).
+// Quién entró a la app (rol, usuario, foto, idioma) y el acceso con las
+// cuentas guardadas en SQLite (alumnos, instructores y administrador).
 // ===================================================================
+
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
 import '../modelos/enums.dart';
 import 'almacen_cuentas.dart';
-import 'simulados/datos_simulados.dart';
 
 // --- resultado de intentar entrar con una cuenta guardada ---
 enum EstadoAcceso {
@@ -22,38 +22,25 @@ enum EstadoAcceso {
 
 class ResultadoAcceso {
   final EstadoAcceso estado;
-  // ahora es la cuenta GUARDADA (la misma que recibe EstadoApp.usarCuenta)
+
+  /// cuenta con la que se intentó entrar (la misma que recibe EstadoApp)
   final CuentaGuardada? cuenta;
   ResultadoAcceso(this.estado, {this.cuenta});
 }
 
-// --- cuentas de prueba (las 3 de siempre) ---
-class CuentaDemo {
-  final String usuario;
-  final String contrasena;
-  final Rol rol;
-  final String etiqueta;
-  const CuentaDemo(this.usuario, this.contrasena, this.rol, this.etiqueta);
-}
-
-const contrasenaDemo = 'Activa2026!';
-
-const cuentasDemo = <CuentaDemo>[
-  CuentaDemo('mar_alumna', contrasenaDemo, Rol.alumno, 'Alumna'),
-  CuentaDemo('mar_instructor', contrasenaDemo, Rol.instructor, 'Instructor'),
-  CuentaDemo('mar_admin', contrasenaDemo, Rol.admin, 'Admin'),
-];
-
 class EstadoSesion extends ChangeNotifier {
   EstadoSesion([this._almacen]);
 
-  /// archivo JSON con las cuentas guardadas (puede ser null)
+  /// cuentas guardadas en SQLite (puede ser null)
   final AlmacenCuentas? _almacen;
 
   Rol? rol;
 
-  /// cuenta que entro con contraseña temporal y todavia tiene que cambiarla
+  /// cuenta que entró con contraseña temporal y todavía tiene que cambiarla
   CuentaGuardada? cuentaPendiente;
+
+  /// cuenta con la sesión activa (para guardar cambios de perfil)
+  CuentaGuardada? cuentaActual;
 
   // ---- idioma: 'es', 'en' o 'fr' ----
   String idioma = 'es';
@@ -63,19 +50,25 @@ class EstadoSesion extends ChangeNotifier {
   }
 
   // ---- nombre de usuario por rol (editable en Editar perfil) ----
-  final Map<Rol, String> _usuarios = {
-    for (final c in cuentasDemo) c.rol: c.usuario,
-  };
+  final Map<Rol, String> _usuarios = {};
   String usuarioDe(Rol r) => _usuarios[r] ?? '';
   bool usuarioDisponible(String u, Rol r) {
     final x = u.trim().toLowerCase();
-    final enDemo = _usuarios.entries.any((e) => e.key != r && e.value == x);
-    final enGuardadas = _almacen?.usuarioTomado(x) ?? false;
-    return !enDemo && !enGuardadas;
+    final enOtroRol = _usuarios.entries.any((e) => e.key != r && e.value == x);
+    final enGuardadas =
+        _almacen?.usuarioTomado(x, excepto: cuentaActual?.id) ?? false;
+    return !enOtroRol && !enGuardadas;
   }
 
   void cambiarUsuario(Rol r, String u) {
-    _usuarios[r] = u.trim().toLowerCase();
+    final nuevo = u.trim().toLowerCase();
+    _usuarios[r] = nuevo;
+    final c = cuentaActual;
+    if (c != null && c.rol == r && c.usuario != nuevo) {
+      c.usuario = nuevo;
+      final almacen = _almacen;
+      if (almacen != null) unawaited(almacen.guardar().then((_) {}));
+    }
     notifyListeners();
   }
 
@@ -94,7 +87,7 @@ class EstadoSesion extends ChangeNotifier {
 
   // ================= CUENTAS GUARDADAS =================
 
-  /// 1) revisa las cuentas del JSON (usuario, correo o numero de control)
+  /// Revisa las cuentas de SQLite por usuario, correo o número de control.
   ResultadoAcceso iniciarSesionGuardada(String usuario, String contrasena) {
     final a = _almacen;
     final c = a?.buscarAcceso(usuario);
@@ -112,6 +105,8 @@ class EstadoSesion extends ChangeNotifier {
       return ResultadoAcceso(EstadoAcceso.cambiarContrasena, cuenta: c);
     }
     rol = c.rol;
+    cuentaActual = c;
+    _usuarios[c.rol] = c.usuario;
     notifyListeners();
     return ResultadoAcceso(EstadoAcceso.ok, cuenta: c);
   }
@@ -147,14 +142,16 @@ class EstadoSesion extends ChangeNotifier {
       return null;
     }
     rol = c.rol;
+    cuentaActual = c;
+    _usuarios[c.rol] = c.usuario;
     cuentaPendiente = null;
     notifyListeners();
     return c;
   }
 
   /// crea la cuenta de un alumno nuevo (pantalla Crear cuenta).
-  /// devuelve el texto del error, o null si todo salio bien
-    Future<String?> registrarAlumno({
+  /// devuelve el texto del error, o null si todo salió bien
+  Future<String?> registrarAlumno({
     required String nombreCompleto,
     required String numeroControl,
     required String grupo,
@@ -171,23 +168,15 @@ class EstadoSesion extends ChangeNotifier {
     final mail = correo.trim().toLowerCase();
     final control = numeroControl.trim();
 
-    // 1) que no exista ya ese correo o numero de control
-    final correoDemo = {
-      alumnoSimulado.correo,
-      instructorSimulado.correo,
-      adminSimulado.correo,
-    }.contains(mail);
-    if (correoDemo || a.correoTomado(mail)) {
+    // 1) que no exista ya ese correo o número de control
+    if (a.correoTomado(mail)) {
       return 'Error: ese correo ya está registrado';
     }
-    final controlDemo =
-        control == alumnoSimulado.numeroControl ||
-        companerosSimulado.any((x) => x.numeroControl == control);
-    if (controlDemo || a.controlTomado(control)) {
+    if (a.controlTomado(control)) {
       return 'Error: ese número de control ya está registrado';
     }
 
-       // 2) nombre y apellidos: si vienen separados se usan tal cual,
+    // 2) nombre y apellidos: si vienen separados se usan tal cual,
     //    si no, se separa como antes (los 2 últimos son apellidos)
     final String nombre, paterno, materno;
     if (soloNombre != null && apellidoPaterno != null) {
@@ -207,7 +196,7 @@ class EstadoSesion extends ChangeNotifier {
       }
     }
 
-    // 3) usuario automatico a partir del correo (que no se repita)
+    // 3) usuario automático a partir del correo (que no se repita)
     final base = CuentaGuardada.usuarioDesdeCorreo(mail);
     var usuario = base;
     var n = 2;
@@ -243,40 +232,6 @@ class EstadoSesion extends ChangeNotifier {
   bool _usuarioOcupado(String u) =>
       _usuarios.containsValue(u) || (_almacen?.usuarioTomado(u) ?? false);
 
-  // ================= CUENTAS DE PRUEBA =================
-
-  /// 2) cuentas de prueba, numero de control o correo de los datos simulados
-  Rol? iniciarSesion(String usuario, String contrasena) {
-    final u = usuario.trim().toLowerCase();
-
-    // usuario de cada rol (ya con el nombre que haya elegido)
-    for (final c in cuentasDemo) {
-      if (_usuarios[c.rol] == u && c.contrasena == contrasena) {
-        rol = c.rol;
-        notifyListeners();
-        return rol;
-      }
-    }
-
-    // numero de control o correo institucional
-    if (contrasena == contrasenaDemo) {
-      Rol? encontrado;
-      if (u == alumnoSimulado.numeroControl || u == alumnoSimulado.correo) {
-        encontrado = Rol.alumno;
-      } else if (u == instructorSimulado.correo) {
-        encontrado = Rol.instructor;
-      } else if (u == adminSimulado.correo) {
-        encontrado = Rol.admin;
-      }
-      if (encontrado != null) {
-        rol = encontrado;
-        notifyListeners();
-        return encontrado;
-      }
-    }
-    return null;
-  }
-
   static String rutaDe(Rol r) => switch (r) {
     Rol.alumno => '/alumno',
     Rol.instructor => '/instructor',
@@ -286,6 +241,8 @@ class EstadoSesion extends ChangeNotifier {
   void cerrarSesion() {
     rol = null;
     cuentaPendiente = null;
+    cuentaActual = null;
+    _usuarios.clear();
     notifyListeners();
   }
 }

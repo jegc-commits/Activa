@@ -52,7 +52,10 @@ class _EstadoAvisosInstructor extends State<PantallaAvisosInstructor> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Aviso eliminado'),
-        action: SnackBarAction(label: 'Deshacer', onPressed: () => s.restaurarAviso(quitado)),
+        action: SnackBarAction(
+          label: 'Deshacer',
+          onPressed: () => s.restaurarAviso(quitado),
+        ),
       ),
     );
   }
@@ -60,7 +63,8 @@ class _EstadoAvisosInstructor extends State<PantallaAvisosInstructor> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<EstadoApp>();
-    final todos = s.avisosPublicados..sort((x, y) => y.fecha.compareTo(x.fecha));
+    final todos = s.avisosPublicados
+      ..sort((x, y) => y.fecha.compareTo(x.fecha));
     final q = _buscar.text.trim().toLowerCase();
     final hace7 = DateTime.now().subtract(const Duration(days: 7));
     final estaSemana = todos.where((a) => a.fecha.isAfter(hace7)).length;
@@ -78,7 +82,11 @@ class _EstadoAvisosInstructor extends State<PantallaAvisosInstructor> {
 
     String etiquetaGrupo(DateTime f) {
       final d = DateTime.now().difference(f).inDays;
-      return d < 7 ? 'Esta semana' : d < 30 ? 'Este mes' : 'Anteriores';
+      return d < 7
+          ? 'Esta semana'
+          : d < 30
+          ? 'Este mes'
+          : 'Anteriores';
     }
 
     final hijos = <Widget>[];
@@ -88,12 +96,19 @@ class _EstadoAvisosInstructor extends State<PantallaAvisosInstructor> {
         final et = etiquetaGrupo(a.fecha);
         if (et != ultima) {
           ultima = et;
-          hijos.add(Padding(
-            padding: const EdgeInsets.fromLTRB(4, 10, 0, 8),
-            child: Text(et,
+          hijos.add(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 10, 0, 8),
+              child: Text(
+                et,
                 style: const TextStyle(
-                    fontWeight: FontWeight.w800, color: ColoresApp.navy, fontSize: 13)),
-          ));
+                  fontWeight: FontWeight.w800,
+                  color: ColoresApp.navy,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          );
         }
       }
       hijos.add(_tarjeta(s, a));
@@ -103,10 +118,18 @@ class _EstadoAvisosInstructor extends State<PantallaAvisosInstructor> {
       padding: const EdgeInsets.all(20),
       children: [
         if (!widget.conAtras)
-          const Text('Mis avisos',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: ColoresApp.navy)),
-        Text('${todos.length} publicados · $estaSemana esta semana',
-            style: const TextStyle(color: Colors.black54, fontSize: 12)),
+          const Text(
+            'Mis avisos',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: ColoresApp.navy,
+            ),
+          ),
+        Text(
+          '${todos.length} publicados · $estaSemana esta semana',
+          style: const TextStyle(color: Colors.black54, fontSize: 12),
+        ),
         const SizedBox(height: 12),
         FilledButton.icon(
           onPressed: () => context.push('/instructor/nuevo-aviso'),
@@ -118,8 +141,16 @@ class _EstadoAvisosInstructor extends State<PantallaAvisosInstructor> {
         const SizedBox(height: 14),
         SegmentedButton<int>(
           segments: const [
-            ButtonSegment(value: 0, icon: Icon(Icons.bolt_rounded), label: Text('Recientes')),
-            ButtonSegment(value: 1, icon: Icon(Icons.history_rounded), label: Text('Historial')),
+            ButtonSegment(
+              value: 0,
+              icon: Icon(Icons.bolt_rounded),
+              label: Text('Recientes'),
+            ),
+            ButtonSegment(
+              value: 1,
+              icon: Icon(Icons.history_rounded),
+              label: Text('Historial'),
+            ),
           ],
           selected: {_vista},
           onSelectionChanged: (v) => setState(() => _vista = v.first),
@@ -142,29 +173,31 @@ class _EstadoAvisosInstructor extends State<PantallaAvisosInstructor> {
         const SizedBox(height: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Row(children: [
-            ChoiceChip(
-              label: const Text('Todos los grupos'),
-              selected: _grupo == null,
-              onSelected: (_) => setState(() => _grupo = null),
-            ),
-            for (final g in s.misGrupos) ...[
-              const SizedBox(width: 8),
+          child: Row(
+            children: [
               ChoiceChip(
-                label: Text(g.nombre),
-                selected: _grupo == g.id,
-                onSelected: (v) => setState(() => _grupo = v ? g.id : null),
+                label: const Text('Todos los grupos'),
+                selected: _grupo == null,
+                onSelected: (_) => setState(() => _grupo = null),
               ),
+              for (final g in s.misGrupos) ...[
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: Text(g.nombre),
+                  selected: _grupo == g.id,
+                  onSelected: (v) => setState(() => _grupo = v ? g.id : null),
+                ),
+              ],
+              for (final t in TipoAviso.values) ...[
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: Text(t.etiqueta),
+                  selected: _tipo == t,
+                  onSelected: (v) => setState(() => _tipo = v ? t : null),
+                ),
+              ],
             ],
-            for (final t in TipoAviso.values) ...[
-              const SizedBox(width: 8),
-              FilterChip(
-                label: Text(t.etiqueta),
-                selected: _tipo == t,
-                onSelected: (v) => setState(() => _tipo = v ? t : null),
-              ),
-            ],
-          ]),
+          ),
         ),
         const SizedBox(height: 10),
         if (lista.isEmpty)
@@ -185,15 +218,21 @@ class _EstadoAvisosInstructor extends State<PantallaAvisosInstructor> {
         if (lista.isNotEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 4),
-            child: Text('Toca un aviso para verlo completo · desliza ← para eliminar',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black38, fontSize: 12)),
+            child: Text(
+              'Toca un aviso para verlo completo · desliza ← para eliminar',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.black38, fontSize: 12),
+            ),
           ),
       ],
     );
 
     return widget.conAtras
-        ? EstructuraSubpantalla(title: 'Mis avisos', fallback: '/instructor/perfil', child: cuerpo)
+        ? EstructuraSubpantalla(
+            title: 'Mis avisos',
+            fallback: '/instructor/perfil',
+            child: cuerpo,
+          )
         : SafeArea(child: cuerpo);
   }
 
@@ -217,54 +256,104 @@ class _EstadoAvisosInstructor extends State<PantallaAvisosInstructor> {
           child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
         ),
         child: TarjetaApp(
-          onTap: () => setState(() => abierto ? _abiertos.remove(a.id) : _abiertos.add(a.id)),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.18),
-              child: Icon(icono, color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(
-                    child: Text(a.titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  Text(tiempoRelativo(a.fecha),
-                      style: const TextStyle(color: Colors.black45, fontSize: 11)),
-                ]),
-                Text('${s.tallerPorId(a.tallerId).nombre} · ${a.tipo.etiqueta}',
-                    style: const TextStyle(color: ColoresApp.primary, fontSize: 11)),
-                const SizedBox(height: 2),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 200),
-                  alignment: Alignment.topCenter,
-                  child: Text(a.mensaje,
-                      maxLines: abierto ? null : 2,
-                      overflow: abierto ? TextOverflow.visible : TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.black54, fontSize: 12)),
-                ),
-                if (abierto) ...[
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    const Icon(Icons.groups_rounded, size: 16, color: ColoresApp.muted),
-                    const SizedBox(width: 4),
-                    Text('Alcanzó a ${s.alumnosDe(a.tallerId).length} alumnos',
-                        style: const TextStyle(color: ColoresApp.muted, fontSize: 12)),
-                    const Spacer(),
-                    TextButton.icon(
-                      style: TextButton.styleFrom(foregroundColor: ColoresApp.danger),
-                      onPressed: () async {
-                        if (await _preguntar() && mounted) _borrar(s, a);
-                      },
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                      label: const Text('Eliminar'),
+          onTap: () => setState(
+            () => abierto ? _abiertos.remove(a.id) : _abiertos.add(a.id),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: color.withValues(alpha: 0.18),
+                child: Icon(icono, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            a.titulo,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        Text(
+                          tiempoRelativo(a.fecha),
+                          style: const TextStyle(
+                            color: Colors.black45,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
                     ),
-                  ]),
-                ],
-              ]),
-            ),
-          ]),
+                    // 👇 CORREGIDO: Usa nombreDeTaller para evitar crasheos si es nulo
+                    Text(
+                      '${s.nombreDeTaller(a.tallerId)} · ${a.tipo.etiqueta}',
+                      style: const TextStyle(
+                        color: ColoresApp.primary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 200),
+                      alignment: Alignment.topCenter,
+                      child: Text(
+                        a.mensaje,
+                        maxLines: abierto ? null : 2,
+                        overflow: abierto
+                            ? TextOverflow.visible
+                            : TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    if (abierto) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.groups_rounded,
+                            size: 16,
+                            color: ColoresApp.muted,
+                          ),
+                          const SizedBox(width: 4),
+                          // 👇 CORREGIDO: Protege el conteo de alumnos si no hay taller
+                          Text(
+                            a.tallerId == null
+                                ? 'Aviso general para todos'
+                                : 'Alcanzó a ${s.alumnosDe(a.tallerId!).length} alumnos',
+                            style: const TextStyle(
+                              color: ColoresApp.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: ColoresApp.danger,
+                            ),
+                            onPressed: () async {
+                              if (await _preguntar() && mounted) _borrar(s, a);
+                            },
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Eliminar'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -315,7 +404,7 @@ class _EstadoPantallaNuevoAviso extends State<PantallaNuevoAviso> {
       mensaje: _mensaje.text,
     );
     context.pop();
-    msg.showSnackBar(avisoSnack(content: Text('Aviso publicado')));
+    msg.showSnackBar(avisoSnack(content: const Text('Aviso publicado')));
   }
 
   @override

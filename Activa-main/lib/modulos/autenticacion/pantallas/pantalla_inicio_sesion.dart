@@ -1,8 +1,8 @@
 // ===================================================================
 // pantalla_inicio_sesion.dart
-// inicio de sesion con 3 roles. el usuario se escribe como usuario_rol
-// (mar_alumna, mar_instructor, mar_admin) y entra a su propio panel.
-// tambien sirve el numero de control o el correo institucional.
+// Inicio de sesión para alumnos, instructores y administrador. Se puede
+// escribir el usuario, el correo o el número de control, y la contraseña
+// se valida contra la tabla `usuarios` de SQLite.
 // ===================================================================
 
 import 'package:flutter/material.dart';
@@ -12,7 +12,6 @@ import 'package:provider/provider.dart';
 import '../../../datos/estado_app.dart';
 import '../../../datos/sesion.dart';
 import '../../../modelos/enums.dart';
-import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/componentes/estructura_autenticacion.dart';
 import '../../../nucleo/componentes/boton_activa.dart';
 import '../../../nucleo/componentes/avisos.dart';
@@ -44,7 +43,7 @@ class _EstadoPantallaInicioSesion extends State<PantallaInicioSesion> {
     final app = context.read<EstadoApp>();
     final mensajes = ScaffoldMessenger.of(context);
 
-    // 1) cuentas guardadas: alumnos registrados e instructores creados por el admin
+    // cuentas guardadas: alumnos, instructores y administrador
     final r = sesion.iniciarSesionGuardada(_userCtrl.text, _passCtrl.text);
     switch (r.estado) {
       case EstadoAcceso.ok:
@@ -66,34 +65,12 @@ class _EstadoPantallaInicioSesion extends State<PantallaInicioSesion> {
         return;
       case EstadoAcceso.incorrecto:
       case EstadoAcceso.noEncontrado:
-        break; // se prueba con las cuentas de prueba, como antes
+        mensajes.showSnackBar(
+          avisoSnack(content: const Text('Usuario o contraseña incorrectos')),
+        );
+        return;
     }
-
-    // 2) cuentas de prueba (mar_alumna, mar_instructor, mar_admin)
-    final rol = sesion.iniciarSesion(_userCtrl.text, _passCtrl.text);
-    if (rol == null) {
-      mensajes.showSnackBar(
-        avisoSnack(content: const Text('Usuario o contraseña incorrectos')),
-      );
-      return;
-    }
-    app.usarCuenta(null);
-    context.go(EstadoSesion.rutaDe(rol));
   }
-
-  // llena los campos con una cuenta de prueba
-  void _usar(CuentaDemo c) {
-    setState(() {
-      _userCtrl.text = c.usuario;
-      _passCtrl.text = c.contrasena;
-    });
-  }
-
-  IconData _icono(Rol r) => switch (r) {
-    Rol.alumno => Icons.school_rounded,
-    Rol.instructor => Icons.sports_rounded,
-    Rol.admin => Icons.admin_panel_settings_rounded,
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +93,7 @@ class _EstadoPantallaInicioSesion extends State<PantallaInicioSesion> {
               autocorrect: false,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.person_outline_rounded),
-                hintText: 'mar_alumna',
+                hintText: 'usuario, correo o número de control',
               ),
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
@@ -171,57 +148,6 @@ class _EstadoPantallaInicioSesion extends State<PantallaInicioSesion> {
               },
             ),
             const SizedBox(height: 18),
-
-            // cuentas de prueba: al tocar una se llenan los campos
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: ColoresApp.mist,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        size: 20,
-                        color: ColoresApp.primary,
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Cuentas de prueba (contraseña: $contrasenaDemo)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final c in cuentasDemo)
-                        ActionChip(
-                          avatar: Icon(
-                            _icono(c.rol),
-                            size: 18,
-                            color: ColoresApp.primary,
-                          ),
-                          label: Text(c.usuario),
-                          onPressed: () => _usar(c),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
             Center(
               child: TextButton(
                 onPressed: () => context.push('/registro'),
