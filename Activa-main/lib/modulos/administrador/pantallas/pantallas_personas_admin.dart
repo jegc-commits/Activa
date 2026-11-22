@@ -1,18 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/utilidades/formateadores.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
-import '../../../nucleo/componentes/estructura_subpantalla.dart';
 import '../../../datos/estado_app.dart';
 import '../../../datos/constantes_app.dart';
-import '../../../nucleo/componentes/avisos.dart';
-
-import '../../../nucleo/componentes/dialogo_confirmar.dart';
-
-import '../../../nucleo/utilidades/validadores.dart';
 
 class PantallaAlumnosAdmin extends StatefulWidget {
   const PantallaAlumnosAdmin({super.key});
@@ -23,6 +16,10 @@ class PantallaAlumnosAdmin extends StatefulWidget {
 class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
   final _search = TextEditingController();
   int _f = 0; // 0 todos, 1 c
+  // filtros que pide la "LISTA DE ALUMNOS": grupo y carrera (el estatus ya
+  // lo cubren los chips de arriba, y la búsqueda ya cubre nombre/matrícula)
+  String? _grupoFiltro;
+  String? _carreraFiltro;
 
   @override
   void dispose() {
@@ -34,7 +31,12 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
   Widget build(BuildContext context) {
     final s = context.watch<EstadoApp>();
     final q = _search.text.trim().toLowerCase();
-    final lista = s.todosAlumnos.where((a) {
+    final todos = s.todosAlumnos;
+    final grupos = todos.map((a) => a.grupo).where((g) => g.isNotEmpty).toSet().toList()
+      ..sort();
+    final carreras = todos.map((a) => a.carrera).where((c) => c.isNotEmpty).toSet().toList()
+      ..sort();
+    final lista = todos.where((a) {
       final h = s.horasAlumno(a);
       final ok = switch (_f) {
         1 => h >= metaHoras,
@@ -42,7 +44,11 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
         3 => h == 0,
         _ => true,
       };
+      final okGrupo = _grupoFiltro == null || a.grupo == _grupoFiltro;
+      final okCarrera = _carreraFiltro == null || a.carrera == _carreraFiltro;
       return ok &&
+          okGrupo &&
+          okCarrera &&
           (a.nombreCompleto.toLowerCase().contains(q) ||
               a.numeroControl.contains(q));
     }).toList();
@@ -92,6 +98,41 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
                 ],
               ],
             ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _grupoFiltro,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Grupo'),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('Todos')),
+                    for (final g in grupos)
+                      DropdownMenuItem(value: g, child: Text(g)),
+                  ],
+                  onChanged: (v) => setState(() => _grupoFiltro = v),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _carreraFiltro,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Carrera'),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('Todas')),
+                    for (final c in carreras)
+                      DropdownMenuItem(
+                        value: c,
+                        child: Text(c, overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged: (v) => setState(() => _carreraFiltro = v),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (lista.isEmpty)
@@ -171,219 +212,4 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
       ),
     );
   }
-}
-
-class PantallaInstructores extends StatelessWidget {
-  const PantallaInstructores({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.watch<EstadoApp>();
-    return EstructuraSubpantalla(
-      title: 'Instructores',
-      fallback: '/admin/perfil',
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  '${s.instructores.length} instructores activos',
-                  style: const TextStyle(color: Colors.black54, fontSize: 12),
-                ),
-                const SizedBox(height: 10),
-                for (final i in s.instructores)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: TarjetaApp(
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: ColoresApp.background,
-                            child: Text(
-                              iniciales(i.nombre, i.apellidoPaterno),
-                              style: const TextStyle(
-                                color: ColoresApp.navy,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  i.nombreCompleto,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  '${i.especialidad} · ${s.alumnosDeInstructor(i.id)} alumnos',
-                                  style: const TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-            child: FilledButton.icon(
-              onPressed: () => context.push('/admin/instructores/nuevo'),
-              icon: const Icon(Icons.add),
-              label: const Text('Agregar instructor'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class PantallaNuevoInstructor extends StatefulWidget {
-  const PantallaNuevoInstructor({super.key});
-  @override
-  State<PantallaNuevoInstructor> createState() =>
-      _EstadoPantallaNuevoInstructor();
-}
-
-class _EstadoPantallaNuevoInstructor extends State<PantallaNuevoInstructor> {
-  final _form = GlobalKey<FormState>();
-  final _nombre = TextEditingController();
-  final _pat = TextEditingController();
-  final _mat = TextEditingController();
-  final _correo = TextEditingController();
-  final _esp = TextEditingController();
-
-  @override
-  void dispose() {
-    for (final c in [_nombre, _pat, _mat, _correo, _esp]) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  Widget _label(String t) => Padding(
-    padding: const EdgeInsets.only(top: 16, bottom: 8),
-    child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold)),
-  );
-
-  Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
-    final s = context.read<EstadoApp>();
-    final n = capitalizar(_nombre.text);
-    final p = capitalizar(_pat.text);
-    final m = capitalizar(_mat.text);
-    if (s.existeInstructor(n, p, m)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        avisoSnack(
-          content: const Text('Error: ya existe un instructor con ese nombre'),
-        ),
-      );
-      return;
-    }
-    final ok = await confirmarAccion(
-      context,
-      titulo: '¿Agregar instructor?',
-      mensaje: 'Se dará de alta a $n $p.',
-      textoConfirmar: 'Agregar',
-      icono: Icons.person_add_alt_1_rounded,
-    );
-    if (!ok || !mounted) return;
-    final msg = ScaffoldMessenger.of(context);
-    s.agregarInstructor(
-      nombre: n,
-      paterno: p,
-      materno: m,
-      correo: _correo.text,
-      especialidad: capitalizar(_esp.text),
-    );
-    context.pop();
-    msg.showSnackBar(avisoSnack(content: const Text('Instructor agregado')));
-  }
-
-  @override
-  Widget build(BuildContext context) => EstructuraSubpantalla(
-    title: 'Agregar instructor',
-    fallback: '/admin/instructores',
-    child: Form(
-      key: _form,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _label('Nombre(s)'),
-          TextFormField(
-            controller: _nombre,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.next,
-            inputFormatters: formatoNombre(),
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.person)),
-            validator: (v) => validarNombre(v, campo: 'El nombre'),
-          ),
-          _label('Apellido paterno'),
-          TextFormField(
-            controller: _pat,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.next,
-            inputFormatters: formatoNombre(),
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            validator: (v) => validarNombre(v, campo: 'El apellido'),
-          ),
-          _label('Apellido materno (opcional)'),
-          TextFormField(
-            controller: _mat,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.next,
-            inputFormatters: formatoNombre(),
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            validator: (v) =>
-                validarNombre(v, campo: 'El apellido', obligatorio: false),
-          ),
-          _label('Correo institucional'),
-          TextFormField(
-            controller: _correo,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            autocorrect: false,
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.email)),
-            validator: (v) =>
-                validarCorreoInstitucional(v) ??
-                (context.read<EstadoApp>().existeCorreoInstructor(v!)
-                    ? 'Ese correo ya está registrado'
-                    : null),
-          ),
-          _label('Especialidad'),
-          TextFormField(
-            controller: _esp,
-            textCapitalization: TextCapitalization.sentences,
-            inputFormatters: formatoNombre(),
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.sports)),
-            validator: (v) =>
-                validarNombre(v, campo: 'La especialidad', min: 3),
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _save,
-            child: const Text('Guardar instructor'),
-          ),
-        ],
-      ),
-    ),
-  );
 }

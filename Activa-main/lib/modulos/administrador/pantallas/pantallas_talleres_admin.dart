@@ -46,6 +46,10 @@ class PantallaTalleresAdmin extends StatefulWidget {
 class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
   final _search = TextEditingController();
   int _f = 0; // 0 todas, 1 activas, 2 llenas, 3 inactivas
+  // filtros adicionales que pide el apartado "LISTA DE TALLERES":
+  // categoría, lugar e instructor (el estado ya lo cubren los chips de arriba)
+  String? _catFiltro; // clave de categoría, null = todas
+  int? _instructorFiltro; // id de instructor, null = todos
 
   @override
   void dispose() {
@@ -64,7 +68,14 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
         3 => !t.activo,
         _ => true,
       };
-      return ok && t.nombre.toLowerCase().contains(q);
+      final okCat = _catFiltro == null || t.categoria.clave == _catFiltro;
+      final okInstructor =
+          _instructorFiltro == null || t.instructor.id == _instructorFiltro;
+      final okBusqueda =
+          q.isEmpty ||
+          t.nombre.toLowerCase().contains(q) ||
+          t.lugar.toLowerCase().contains(q);
+      return ok && okCat && okInstructor && okBusqueda;
     }).toList();
 
     return Scaffold(
@@ -97,7 +108,7 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'Buscar Taller',
+                hintText: 'Buscar por nombre o lugar',
               ),
             ),
             const SizedBox(height: 10),
@@ -120,6 +131,44 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
                   ],
                 ],
               ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: _catFiltro,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Categoría'),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Todas')),
+                      for (final c in s.categorias)
+                        DropdownMenuItem(value: c.clave, child: Text(c.nombre)),
+                    ],
+                    onChanged: (v) => setState(() => _catFiltro = v),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<int?>(
+                    initialValue: _instructorFiltro,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Instructor'),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Todos')),
+                      for (final i in s.instructores)
+                        DropdownMenuItem(
+                          value: i.id,
+                          child: Text(
+                            i.nombreCompleto,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _instructorFiltro = v),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             if (lista.isEmpty)
