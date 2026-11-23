@@ -69,7 +69,7 @@ class _EstadoPantallaCarga extends State<PantallaCarga>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Conecta · Participa · Vive tu universidad',
+                  'Conecta · Participa · Vive tu escuela',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: ColoresApp.sky.withValues(alpha: 0.95),

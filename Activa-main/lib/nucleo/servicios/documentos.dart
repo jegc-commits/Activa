@@ -146,7 +146,7 @@ class Documentos {
             pw.SizedBox(height: 24),
             _tabla([
               ['Nombre', i.alumno.nombreCompleto],
-              ['Número de control', i.alumno.numeroControl],
+              ['Matrícula', i.alumno.numeroControl],
               ['Actividad', t.nombre],
               ['Horario', t.horarioTexto],
               ['Lugar', t.lugar],
@@ -196,15 +196,15 @@ class Documentos {
     );
   }
 
-  // ───────── PDF: constancia de horas ─────────
+  // ───────── PDF: constancia de sesiones ─────────
   static Future<void> constanciaHoras(
     Alumno a,
-    int horas, {
+    int sesiones, {
     required bool finalDoc,
   }) async {
     final titulo = finalDoc
-        ? 'Constancia final de horas'
-        : 'Constancia parcial de horas';
+        ? 'Constancia final de sesiones'
+        : 'Constancia parcial de sesiones';
     final pdf = pw.Document();
     pdf.addPage(
       pw.Page(
@@ -217,15 +217,15 @@ class Documentos {
             pw.SizedBox(height: 24),
             _tabla([
               ['Nombre', a.nombreCompleto],
-              ['Número de control', a.numeroControl],
-              ['Carrera', a.carrera],
+              ['Matrícula', a.numeroControl],
+              ['Especialidad', a.carrera],
               ['Grupo', a.grupo],
               ['Periodo', periodoActual],
-              ['Horas acumuladas', '$horas de $metaHoras'],
               [
-                'Estatus',
-                finalDoc ? 'Actividad paraescolar completada' : 'En proceso',
+                'Sesiones acumuladas',
+                '$sesiones ${sesiones == 1 ? 'sesión' : 'sesiones'}',
               ],
+              ['Estatus', 'Participación activa'],
             ], etiquetas: true),
             pw.Spacer(),
             _txt(
@@ -260,11 +260,11 @@ class Documentos {
 
   static List<String> _resumen(EstadoApp s) {
     final alumnos = s.todosAlumnos;
-    final con60 = alumnos.where((a) => s.horasAlumno(a) >= metaHoras).length;
+    final conSesiones = alumnos.where((a) => s.horasAlumno(a) > 0).length;
     return [
       'Periodo: $periodoActual',
       'Total de inscripciones: ${s.totalInscripciones}',
-      'Alumnos con $metaHoras horas: $con60 de ${alumnos.length}',
+      'Alumnos con sesiones registradas: $conSesiones de ${alumnos.length}',
       'Generado el ${fechaLarga(DateTime.now())}',
     ];
   }

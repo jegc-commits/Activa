@@ -58,8 +58,6 @@ class _EstadoPeriodoEscolar extends State<PantallaPeriodoEscolar> {
               children: [
                 _fila(Icons.calendar_today, 'Periodo', periodoActual),
                 const Divider(height: 1),
-                _fila(Icons.timer, 'Meta de horas', '$metaHoras horas'),
-                const Divider(height: 1),
                 _fila(
                   Icons.groups,
                   'Talleres',
@@ -113,102 +111,116 @@ class _EstadoPeriodoEscolar extends State<PantallaPeriodoEscolar> {
   }
 }
 
-// ───────────────────── validacion de horas ─────────────────────
-class PantallaValidacionHoras extends StatefulWidget {
-  const PantallaValidacionHoras({super.key});
+// ───────────────────── especialidades (registro de alumno) ─────────────────────
+class PantallaEspecialidades extends StatefulWidget {
+  const PantallaEspecialidades({super.key});
   @override
-  State<PantallaValidacionHoras> createState() => _EstadoValidacionHoras();
+  State<PantallaEspecialidades> createState() => _EstadoEspecialidades();
 }
 
-class _EstadoValidacionHoras extends State<PantallaValidacionHoras> {
-  // lista de horas reportadas por instructores (de ejemplo)
-  late final List<({String alumno, String taller, int horas})> _pendientes = [
-    (alumno: 'Ana Sofía Ramírez', taller: 'Voleibol', horas: 6),
-    (alumno: 'Diego A. Torres', taller: 'Ajedrez', horas: 4),
-    (alumno: 'Fernanda Ibarra', taller: 'Danza folclórica', horas: 8),
-    (alumno: 'Jorge L. Camacho', taller: 'Teatro', horas: 5),
-  ];
+class _EstadoEspecialidades extends State<PantallaEspecialidades> {
+  final _nueva = TextEditingController();
 
-  void _resolver(int i, bool aprobar) {
-    final p = _pendientes[i];
-    setState(() => _pendientes.removeAt(i));
-    ScaffoldMessenger.of(context).showSnackBar(
-      avisoSnack(
-        content: Text(
-          aprobar
-              ? 'Horas de ${p.alumno} aprobadas, cambios guardados'
-              : 'Horas de ${p.alumno} rechazadas',
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    _nueva.dispose();
+    super.dispose();
+  }
+
+  void _agregar() {
+    final texto = _nueva.text.trim();
+    if (texto.isEmpty) return;
+    final agregada = context.read<EstadoApp>().agregarEspecialidad(texto);
+    if (!agregada) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        avisoSnack(content: const Text('Esa especialidad ya está en la lista')),
+      );
+      return;
+    }
+    _nueva.clear();
+  }
+
+  void _eliminar(String nombre) {
+    context.read<EstadoApp>().eliminarEspecialidad(nombre);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(avisoSnack(content: Text('Se quitó "$nombre"')));
   }
 
   @override
   Widget build(BuildContext context) {
+    final especialidades = context.watch<EstadoApp>().especialidades;
     return EstructuraSubpantalla(
-      title: 'Validación de horas',
+      title: 'Especialidades',
       fallback: '/admin/perfil',
-      child: _pendientes.isEmpty
-          ? const Center(
-              child: Text(
-                'No hay horas por validar',
-                style: TextStyle(color: ColoresApp.muted),
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text(
+            'Son las opciones que ven los alumnos al registrarse, en el '
+            'campo "Especialidad".',
+            style: TextStyle(color: ColoresApp.muted, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          TarjetaApp(
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _nueva,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      hintText: 'Nueva especialidad',
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => _agregar(),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle, color: ColoresApp.primary),
+                  onPressed: _agregar,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (especialidades.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'No hay especialidades todavía',
+                  style: TextStyle(color: ColoresApp.muted),
+                ),
               ),
             )
-          : ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: _pendientes.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (_, i) {
-                final p = _pendientes[i];
-                return TarjetaApp(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        p.alumno,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: ColoresApp.navy,
+          else
+            TarjetaApp(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (final e in especialidades) ...[
+                    ListTile(
+                      leading: const Icon(
+                        Icons.school_outlined,
+                        color: ColoresApp.primary,
+                      ),
+                      title: Text(e),
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: ColoresApp.danger,
                         ),
+                        onPressed: () => _eliminar(e),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${p.taller} · ${p.horas} horas reportadas',
-                        style: const TextStyle(
-                          color: ColoresApp.muted,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(46),
-                              ),
-                              onPressed: () => _resolver(i, false),
-                              child: const Text('Rechazar'),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: FilledButton(
-                              style: FilledButton.styleFrom(
-                                minimumSize: const Size.fromHeight(46),
-                              ),
-                              onPressed: () => _resolver(i, true),
-                              child: const Text('Aprobar'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
+                    ),
+                    if (e != especialidades.last) const Divider(height: 1),
+                  ],
+                ],
+              ),
             ),
+        ],
+      ),
     );
   }
 }

@@ -23,6 +23,7 @@ import 'base_datos.dart';
 class DatosActiva {
   DatosActiva({
     required this.categorias,
+    required this.especialidades,
     required this.talleres,
     required this.inscripciones,
     required this.horasPorFolio,
@@ -45,6 +46,7 @@ class DatosActiva {
   });
 
   final List<Categoria> categorias;
+  final List<String> especialidades;
   final List<Taller> talleres;
   final List<Inscripcion> inscripciones;
   final Map<String, int> horasPorFolio;
@@ -74,6 +76,7 @@ class RepositorioActiva {
   // ======================================================= lectura
   Future<DatosActiva> cargarTodo() async {
     final categorias = await _cargarCategorias();
+    final especialidades = await _cargarEspecialidades();
     final instructores = await _cargarInstructores();
     final alumnos = await _cargarAlumnos();
     final talleres = await _cargarTalleres(
@@ -213,6 +216,7 @@ class RepositorioActiva {
 
     return DatosActiva(
       categorias: categorias,
+      especialidades: especialidades,
       talleres: talleres,
       inscripciones: inscripciones,
       horasPorFolio: horasPorFolio,
@@ -246,6 +250,11 @@ class RepositorioActiva {
         icono: f['icono'] as String,
         activa: (f['activa'] as int? ?? 1) == 1,
       ),
+  ];
+
+  Future<List<String>> _cargarEspecialidades() async => [
+    for (final f in await _db.query('especialidades_alumno', orderBy: 'nombre'))
+      f['nombre'] as String,
   ];
 
   Future<List<Instructor>> _cargarInstructores() async => [
@@ -324,7 +333,6 @@ class RepositorioActiva {
           categoria: categoria,
           lugar: (f['lugar'] as String?) ?? '',
           cupoMaximo: f['cupo_maximo'] as int,
-          horasOtorga: f['horas_otorga'] as int? ?? 60,
           activo: (f['activo'] as int? ?? 1) == 1,
           instructor: instructor,
           horarios: horarios[id] ?? const [],
@@ -377,6 +385,18 @@ class RepositorioActiva {
   }
 
   // ======================================================= escritura
+  Future<void> agregarEspecialidad(String nombre) => _db.insert(
+    'especialidades_alumno',
+    {'nombre': nombre},
+    conflictAlgorithm: ConflictAlgorithm.ignore,
+  );
+
+  Future<void> eliminarEspecialidad(String nombre) => _db.delete(
+    'especialidades_alumno',
+    where: 'nombre = ?',
+    whereArgs: [nombre],
+  );
+
   Future<void> guardarCategoria(Categoria c) => _db.insert('categorias', {
     'id': c.id,
     'clave': c.clave,
@@ -451,7 +471,6 @@ class RepositorioActiva {
       'categoria_id': t.categoria.id,
       'lugar': t.lugar,
       'cupo_maximo': t.cupoMaximo,
-      'horas_otorga': t.horasOtorga,
       'activo': t.activo ? 1 : 0,
       'instructor_id': t.instructor.id,
       'inscritos': t.inscritos,

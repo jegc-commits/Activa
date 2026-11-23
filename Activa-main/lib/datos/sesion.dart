@@ -5,11 +5,13 @@
 // ===================================================================
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
 import '../modelos/enums.dart';
 import 'almacen_cuentas.dart';
+import 'servicio_correo_recuperacion.dart';
 
 // --- resultado de intentar entrar con una cuenta guardada ---
 enum EstadoAcceso {
@@ -102,6 +104,25 @@ class EstadoSesion extends ChangeNotifier {
     }
     if (c.debeCambiarContrasena) {
       cuentaPendiente = c; // primero tiene que crear su contraseña
+      return ResultadoAcceso(EstadoAcceso.cambiarContrasena, cuenta: c);
+    }
+    rol = c.rol;
+    cuentaActual = c;
+    _usuarios[c.rol] = c.usuario;
+    notifyListeners();
+    return ResultadoAcceso(EstadoAcceso.ok, cuenta: c);
+  }
+
+  /// Mismo flujo que [iniciarSesionGuardada] pero a partir del correo que
+  /// confirmó Google (servicio_autenticacion_google.dart), sin contraseña:
+  /// solo entra si ya existe una cuenta de ACTIVA con ese correo.
+  ResultadoAcceso iniciarSesionConCorreoGoogle(String correo) {
+    final a = _almacen;
+    final c = a?.buscarAcceso(correo);
+    if (a == null || c == null) return ResultadoAcceso(EstadoAcceso.noEncontrado);
+    if (!c.activo) return ResultadoAcceso(EstadoAcceso.desactivado);
+    if (c.debeCambiarContrasena) {
+      cuentaPendiente = c;
       return ResultadoAcceso(EstadoAcceso.cambiarContrasena, cuenta: c);
     }
     rol = c.rol;
@@ -231,6 +252,143 @@ class EstadoSesion extends ChangeNotifier {
 
   bool _usuarioOcupado(String u) =>
       _usuarios.containsValue(u) || (_almacen?.usuarioTomado(u) ?? false);
+
+  // ================= RECUPERAR CONTRASEÑA =================
+  // El código de 6 dígitos se genera aquí y se manda por correo real con
+  // ServicioCorreoRecuperacion (EmailJS). Si ese servicio todavía no está
+  // configurado (ver GUIA_CORREO_RECUPERACION.md), el código se regresa
+  // en el resultado para mostrarlo en pantalla como respaldo temporal.
+  static const _duracionCodigo = Duration(minutes: 10);
+
+  CuentaGuardada? _cuentaRecuperacion;
+  String? _codigoRecuperacion;
+  DateTime? _codigoExpira;
+
+  String _correoEnmascarado(String correo) {
+    final partes = correo.split('@');
+    if (partes.length != 2) return correo;
+    final nombre = partes.first;
+    if (nombre.length <= 4) return correo;
+    return '${nombre.substring(0, 2)}****${nombre.substring(nombre.length - 2)}@${partes[1]}';
+  }
+
+  String _generarCodigo() => (Random.secure().nextInt(900000) + 100000).toString();
+
+  /// Busca la cuenta por usuario, correo o número de control, genera un
+  /// código de 6 dígitos con vigencia de 10 minutos y lo manda por correo
+  /// real. [codigo] solo viene lleno en el resultado si el correo real
+  /// todavía no está configurado (ver GUIA_CORREO_RECUPERACION.md), para
+  /// poder mostrarlo en pantalla como respaldo mientras tanto.
+  Future<({bool ok, String? error, String? correoEnmascarado, String? codigo})>
+  solicitarCodigoRecuperacion(String texto) async {
+    final a = _almacen;
+    if (a == null) {
+      return (
+        ok: false,
+        error: 'Error: no se pudo abrir el almacenamiento',
+        correoEnmascarado: null,
+        codigo: null,
+      );
+    }
+    final c = a.buscarAcceso(texto);
+    if (c == null) {
+      return (
+        ok: false,
+        error: 'No encontramos una cuenta con ese dato',
+        correoEnmascarado: null,
+        codigo: null,
+      );
+    }
+    if (!c.activo) {
+      return (
+        ok: false,
+        error: 'Esta cuenta está desactivada. Habla con la coordinación',
+        correoEnmascarado: null,
+        codigo: null,
+      );
+    }
+    _cuentaRecuperacion = c;
+    _codigoRecuperacion = _generarCodigo();
+    _codigoExpira = DateTime.now().add(_duracionCodigo);
+
+    if (!ServicioCorreoRecuperacion.estaConfigurado) {
+      // Respaldo temporal: todavía no se configuró el correo real.
+      return (
+        ok: true,
+        error: null,
+        correoEnmascarado: _correoEnmascarado(c.correo),
+        codigo: _codigoRecuperacion,
+      );
+    }
+
+    final enviado = await ServicioCorreoRecuperacion.enviarCodigo(
+      correoDestino: c.correo,
+      nombre: c.nombre,
+      codigo: _codigoRecuperacion!,
+    );
+    if (!enviado) {
+      return (
+        ok: false,
+        error: 'No se pudo enviar el correo. Intenta de nuevo en un momento',
+        correoEnmascarado: null,
+        codigo: null,
+      );
+    }
+    return (
+      ok: true,
+      error: null,
+      correoEnmascarado: _correoEnmascarado(c.correo),
+      codigo: null,
+    );
+  }
+
+  /// Genera un código nuevo para la misma cuenta y lo reenvía por correo
+  /// (botón "Reenviar código"). Regresa el código solo si el correo real
+  /// todavía no está configurado.
+  Future<String?> reenviarCodigoRecuperacion() async {
+    final c = _cuentaRecuperacion;
+    if (c == null) return null;
+    _codigoRecuperacion = _generarCodigo();
+    _codigoExpira = DateTime.now().add(_duracionCodigo);
+
+    if (!ServicioCorreoRecuperacion.estaConfigurado) return _codigoRecuperacion;
+
+    await ServicioCorreoRecuperacion.enviarCodigo(
+      correoDestino: c.correo,
+      nombre: c.nombre,
+      codigo: _codigoRecuperacion!,
+    );
+    return null;
+  }
+
+  bool verificarCodigoRecuperacion(String codigo) {
+    if (_cuentaRecuperacion == null || _codigoRecuperacion == null) {
+      return false;
+    }
+    final expira = _codigoExpira;
+    if (expira == null || DateTime.now().isAfter(expira)) return false;
+    return codigo.trim() == _codigoRecuperacion;
+  }
+
+  /// Guarda la contraseña nueva de la cuenta en recuperación. Devuelve el
+  /// texto del error, o null si todo salió bien.
+  Future<String?> guardarContrasenaRecuperada(String nueva) async {
+    final a = _almacen;
+    final c = _cuentaRecuperacion;
+    if (a == null || c == null) return 'Error: la sesión de recuperación expiró';
+    a.ponerContrasena(c, nueva);
+    if (!await a.guardar()) {
+      return 'Error: no se pudo guardar la contraseña nueva';
+    }
+    cancelarRecuperacion();
+    return null;
+  }
+
+  void cancelarRecuperacion() {
+    _cuentaRecuperacion = null;
+    _codigoRecuperacion = null;
+    _codigoExpira = null;
+  }
 
   static String rutaDe(Rol r) => switch (r) {
     Rol.alumno => '/alumno',

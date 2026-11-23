@@ -39,8 +39,8 @@ String? validarNombreCompleto(String? v) {
 String? validarCorreoInstitucional(String? v) {
   final t = (v ?? '').trim().toLowerCase();
   if (t.isEmpty) return 'Campo requerido';
-  if (!RegExp(r'^[a-z0-9._]{3,}@utng\.edu\.mx$').hasMatch(t)) {
-    return 'Usa un correo @utng.edu.mx válido';
+  if (!RegExp(r'^[a-z0-9._%+-]{3,}@[a-z0-9.-]+\.[a-z]{2,}$').hasMatch(t)) {
+    return 'Escribe un correo válido';
   }
   return null;
 }

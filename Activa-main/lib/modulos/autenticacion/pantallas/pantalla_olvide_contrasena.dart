@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../../datos/sesion.dart';
 import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/utilidades/reglas_contrasena.dart';
 import '../../../nucleo/componentes/estructura_autenticacion.dart';
+import '../../../nucleo/componentes/avisos.dart';
 
 class PantallaOlvideContrasena extends StatefulWidget {
   const PantallaOlvideContrasena({super.key});
@@ -25,27 +28,20 @@ class _EstadoPantallaOlvideContrasena extends State<PantallaOlvideContrasena> {
 
   int _step = 0;
   bool _obscure = true;
+  String? _emailError;
   String? _codeError;
+  String _correoMostrar = '';
   int _seconds = 0;
   Timer? _timer;
 
   @override
   void dispose() {
     _timer?.cancel();
+    context.read<EstadoSesion>().cancelarRecuperacion();
     for (final c in [_user, _code, _pass, _pass2]) {
       c.dispose();
     }
     super.dispose();
-  }
-
-  // 1225100380@utng.edu.mx -> 12****80@utng.edu.mx
-  String get _maskedEmail {
-    final u = _user.text.trim();
-    final email = u.contains('@') ? u : '$u@utng.edu.mx';
-    final parts = email.split('@');
-    final name = parts[0];
-    if (name.length <= 4) return email;
-    return '${name.substring(0, 2)}****${name.substring(name.length - 2)}@${parts[1]}';
   }
 
   void _startTimer() {
@@ -61,11 +57,45 @@ class _EstadoPantallaOlvideContrasena extends State<PantallaOlvideContrasena> {
 
   String get _countdown => '00:${_seconds.toString().padLeft(2, '0')}';
 
-  void _sendCode() {
+  // muestra el código mientras no haya un correo real que lo mande
+  void _mostrarCodigoDePrueba(String codigo) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      avisoSnack(
+        content: Text('Modo de prueba: tu código es $codigo'),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
+  bool _enviando = false;
+
+  Future<void> _sendCode() async {
     if (!_form0.currentState!.validate()) return;
-    // TODO: backend busca la cuenta y envía el código al correo
+    setState(() => _enviando = true);
+    final r = await context.read<EstadoSesion>().solicitarCodigoRecuperacion(
+      _user.text,
+    );
+    if (!mounted) return;
+    setState(() => _enviando = false);
+    if (!r.ok) {
+      setState(() => _emailError = r.error);
+      return;
+    }
+    setState(() {
+      _emailError = null;
+      _correoMostrar = r.correoEnmascarado!;
+    });
     _code.clear();
     _startTimer();
+    // Si el correo real todavía no está configurado, r.codigo trae el
+    // código para mostrarlo aquí como respaldo temporal.
+    if (r.codigo != null) {
+      _mostrarCodigoDePrueba(r.codigo!);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        avisoSnack(content: const Text('Te enviamos el código a tu correo')),
+      );
+    }
     setState(() => _step = 1);
   }
 
@@ -74,16 +104,31 @@ class _EstadoPantallaOlvideContrasena extends State<PantallaOlvideContrasena> {
       setState(() => _codeError = 'Escribe los 6 dígitos');
       return;
     }
-    // TODO: backend valida el código (temporal, con expiración)
+    final ok = context.read<EstadoSesion>().verificarCodigoRecuperacion(
+      _code.text,
+    );
+    if (!ok) {
+      setState(() => _codeError = 'Código incorrecto o vencido');
+      return;
+    }
     setState(() {
       _codeError = null;
       _step = 2;
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_form2.currentState!.validate()) return;
-    // TODO: backend actualiza password y cierra sesiones en otros dispositivos
+    final error = await context.read<EstadoSesion>().guardarContrasenaRecuperada(
+      _pass.text,
+    );
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(avisoSnack(content: Text(error)));
+      return;
+    }
     context.go('/contrasena-actualizada');
   }
 
@@ -138,25 +183,41 @@ class _EstadoPantallaOlvideContrasena extends State<PantallaOlvideContrasena> {
         _badge(Icons.lock),
         const SizedBox(height: 16),
         const Text(
-          'Escribe tu número de control o tu correo institucional y te enviaremos un código de verificación de 6 dígitos.',
+          'Escribe tu matrícula o tu correo y te enviaremos un código de verificación de 6 dígitos.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.black54, fontSize: 13),
         ),
         const SizedBox(height: 20),
         const Text(
-          'Número de control o correo institucional',
+          'Matrícula o correo electrónico',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _user,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(prefixIcon: Icon(Icons.email)),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.email),
+            errorText: _emailError,
+          ),
+          onChanged: (_) => setState(() => _emailError = null),
           validator: (v) =>
               (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
         ),
         const SizedBox(height: 20),
-        FilledButton(onPressed: _sendCode, child: const Text('Enviar código')),
+        FilledButton(
+          onPressed: _enviando ? null : _sendCode,
+          child: _enviando
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Enviar código'),
+        ),
         Center(
           child: TextButton.icon(
             onPressed: () => context.go('/inicio-sesion'),
@@ -173,7 +234,7 @@ class _EstadoPantallaOlvideContrasena extends State<PantallaOlvideContrasena> {
       _badge(Icons.email),
       const SizedBox(height: 16),
       Text(
-        'Enviamos un código a $_maskedEmail. Escríbelo para continuar.',
+        'Enviamos un código a $_correoMostrar. Escríbelo para continuar.',
         textAlign: TextAlign.center,
         style: const TextStyle(color: Colors.black54, fontSize: 13),
       ),
@@ -203,7 +264,21 @@ class _EstadoPantallaOlvideContrasena extends State<PantallaOlvideContrasena> {
               style: const TextStyle(color: Colors.black54, fontSize: 12),
             )
           : TextButton(
-              onPressed: _startTimer, // TODO: reenviar código real
+              onPressed: () async {
+                final sesion = context.read<EstadoSesion>();
+                _startTimer();
+                final nuevo = await sesion.reenviarCodigoRecuperacion();
+                if (!mounted) return;
+                if (nuevo != null) {
+                  _mostrarCodigoDePrueba(nuevo);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    avisoSnack(
+                      content: const Text('Te enviamos un código nuevo'),
+                    ),
+                  );
+                }
+              },
               child: const Text('Reenviar código'),
             ),
       const SizedBox(height: 12),
@@ -211,6 +286,7 @@ class _EstadoPantallaOlvideContrasena extends State<PantallaOlvideContrasena> {
       TextButton(
         onPressed: () {
           _timer?.cancel();
+          context.read<EstadoSesion>().cancelarRecuperacion();
           setState(() => _step = 0);
         },
         child: const Text('Cambiar correo'),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:provider/provider.dart';
 
+import '../../../datos/estado_app.dart';
 import '../../../datos/sesion.dart';
 import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/utilidades/reglas_contrasena.dart';
@@ -28,11 +29,6 @@ class _EstadoPantallaRegistro extends State<PantallaRegistro> {
   final _correo = TextEditingController();
   final _pass = TextEditingController();
   final _pass2 = TextEditingController();
-
-  static const _carreras = [
-    'Ingeniería en Desarrollo de Software',
-    'TSU en Desarrollo de Software Multiplataforma',
-  ];
 
   int _step = 0;
   String? _carrera;
@@ -215,7 +211,7 @@ class _EstadoPantallaRegistro extends State<PantallaRegistro> {
         ),
         const SizedBox(height: 16),
 
-        // ---------- Número de control y grupo ----------
+        // ---------- Matrícula y grupo ----------
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -223,7 +219,7 @@ class _EstadoPantallaRegistro extends State<PantallaRegistro> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _etiqueta('Número de control'),
+                  _etiqueta('Matrícula'),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _control,
@@ -272,7 +268,7 @@ class _EstadoPantallaRegistro extends State<PantallaRegistro> {
         const SizedBox(height: 16),
 
         // ---------- Correo ----------
-        _etiqueta('Correo institucional'),
+        _etiqueta('Correo electrónico'),
         const SizedBox(height: 8),
         TextFormField(
           controller: _correo,
@@ -280,30 +276,42 @@ class _EstadoPantallaRegistro extends State<PantallaRegistro> {
           autocorrect: false,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.email),
-            hintText: 'tucontrol@utng.edu.mx',
+            hintText: 'tucorreo@ejemplo.com',
           ),
           validator: validarCorreoInstitucional,
         ),
         const SizedBox(height: 16),
 
-        // ---------- Carrera ----------
-        _etiqueta('Carrera'),
+        // ---------- Especialidad ----------
+        _etiqueta('Especialidad'),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _carrera,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.school_outlined),
-          ),
-          items: [
-            for (final c in _carreras)
-              DropdownMenuItem(
-                value: c,
-                child: Text(c, overflow: TextOverflow.ellipsis),
+        Builder(
+          builder: (context) {
+            final especialidades = context.watch<EstadoApp>().especialidades;
+            if (especialidades.isEmpty) {
+              return const Text(
+                'Todavía no hay especialidades registradas. Pide al '
+                'administrador que agregue al menos una.',
+                style: TextStyle(color: Colors.black54, fontSize: 12),
+              );
+            }
+            return DropdownButtonFormField<String>(
+              initialValue: especialidades.contains(_carrera) ? _carrera : null,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.school_outlined),
               ),
-          ],
-          onChanged: (v) => setState(() => _carrera = v),
-          validator: (v) => v == null ? 'Selecciona tu carrera' : null,
+              items: [
+                for (final c in especialidades)
+                  DropdownMenuItem(
+                    value: c,
+                    child: Text(c, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _carrera = v),
+              validator: (v) => v == null ? 'Selecciona tu especialidad' : null,
+            );
+          },
         ),
         const SizedBox(height: 28),
         FilledButton(onPressed: _next, child: const Text('Continuar')),

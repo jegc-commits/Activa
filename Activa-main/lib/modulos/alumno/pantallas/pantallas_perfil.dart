@@ -13,17 +13,12 @@ import '../../../datos/estado_app.dart';
 import '../../../datos/constantes_app.dart';
 import '../componentes/miniatura_taller.dart';
 import '../../../nucleo/servicios/sonidos.dart';
-import '../../../nucleo/componentes/avisos.dart';
 
 import '../../../nucleo/componentes/dialogo_confirmar.dart';
 
 import '../../../modelos/inscripcion.dart';
 import '../../../nucleo/servicios/documentos.dart';
 import '../../../nucleo/utilidades/textos.dart';
-
-void _soon(BuildContext c) =>
-    ScaffoldMessenger.of(c)
-        .showSnackBar(avisoSnack(content: Text('Próximamente')));
 
 // Estructura común de las sub-pantallas (flecha atrás + título)
 class _Sub extends StatelessWidget {
@@ -245,10 +240,7 @@ class PantallaPerfil extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _DatoPerfil(
-                          '$h / $metaHoras',
-                          context.tr('perfil.horas'),
-                        ),
+                        _DatoPerfil('$h', context.tr('perfil.horas')),
                         _DatoPerfil(
                           '${s.misInscripciones.length}',
                           context.tr('perfil.talleres'),
@@ -292,7 +284,7 @@ class PantallaPerfil extends StatelessWidget {
                   _atajo(
                     Icons.bar_chart,
                     context.tr('perfil.progreso'),
-                    '$h de $metaHoras h',
+                    '$h ${h == 1 ? 'sesión' : 'sesiones'}',
                     ColoresApp.warning,
                     () => context.push('/perfil/progreso'),
                   ),
@@ -453,7 +445,7 @@ class PantallaDatosAcademicos extends StatelessWidget {
                   'Universidad',
                   'Universidad Tecnológica del Norte de Guanajuato',
                 ),
-                _Linea('Carrera', a.carrera),
+                _Linea('Especialidad', a.carrera),
                 _Linea('Grupo', a.grupo),
                 _Linea('Periodo', periodoActual),
                 const _Linea('Estatus', 'Activo', chip: true),
@@ -474,26 +466,16 @@ class PantallaDatosAcademicos extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '$h / $metaHoras horas',
+                      '$h ${h == 1 ? 'sesión' : 'sesiones'}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: (h / metaHoras).clamp(0.0, 1.0),
-                    minHeight: 8,
-                    backgroundColor: ColoresApp.background,
-                    color: ColoresApp.primary,
-                  ),
-                ),
                 const SizedBox(height: 8),
                 Text(
-                  h >= metaHoras
-                      ? '¡Completaste tu taller paraescolar!'
-                      : 'Te faltan ${metaHoras - h} horas para completar tu taller paraescolar.',
+                  h == 0
+                      ? 'Aún no tienes sesiones registradas.'
+                      : 'Vas sumando sesiones en tu taller paraescolar.',
                   style: const TextStyle(color: Colors.black54, fontSize: 12),
                 ),
               ],
@@ -559,14 +541,8 @@ class _EstadoPantallaComprobantes extends State<PantallaComprobantes> {
         ),
       _Doc(
         true,
-        'Constancia parcial de horas',
-        '$h de $metaHoras horas acumuladas\nActualizada hoy',
-      ),
-      _Doc(
-        true,
-        'Constancia final de horas',
-        'Se habilita al completar las $metaHoras horas',
-        locked: h < metaHoras,
+        'Constancia de sesiones',
+        '$h ${h == 1 ? 'sesión' : 'sesiones'} acumuladas\nActualizada hoy',
         finalDoc: true,
       ),
     ];
@@ -583,7 +559,7 @@ class _EstadoPantallaComprobantes extends State<PantallaComprobantes> {
             children: [
               for (final (i, t) in [
                 'Inscripciones',
-                'Horas',
+                'Sesiones',
                 'Todos',
               ].indexed) ...[
                 ChoiceChip(
@@ -699,7 +675,6 @@ class PantallaProgreso extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.watch<EstadoApp>();
     final h = s.horasRealizadas;
-    final pct = (h / metaHoras).clamp(0.0, 1.0);
     return _Sub(
       'Mi progreso',
       ListView(
@@ -716,7 +691,7 @@ class PantallaProgreso extends StatelessWidget {
                     children: [
                       SizedBox.expand(
                         child: CircularProgressIndicator(
-                          value: pct,
+                          value: 1,
                           strokeWidth: 14,
                           backgroundColor: ColoresApp.background,
                           color: ColoresApp.primary,
@@ -734,7 +709,7 @@ class PantallaProgreso extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'de $metaHoras horas',
+                            h == 1 ? 'sesión' : 'sesiones',
                             style: const TextStyle(
                               color: Colors.black54,
                               fontSize: 12,
@@ -747,17 +722,9 @@ class PantallaProgreso extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '${(pct * 100).round()} % completado',
-                  style: const TextStyle(
-                    color: ColoresApp.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  h >= metaHoras
-                      ? '¡Meta del cuatrimestre cumplida!'
-                      : 'Te faltan ${metaHoras - h} horas para tu meta del cuatrimestre.',
+                  h == 0
+                      ? 'Aún no tienes sesiones registradas'
+                      : '¡Sigue sumando sesiones!',
                   style: const TextStyle(color: Colors.black54, fontSize: 12),
                 ),
               ],
@@ -772,7 +739,11 @@ class PantallaProgreso extends StatelessWidget {
                 'Talleres',
               ),
               const SizedBox(width: 10),
-              _Estadistica(Icons.access_time, '${s.horasDelMes} h', 'Este mes'),
+              _Estadistica(
+                Icons.access_time,
+                '${s.horasDelMes}',
+                'Este mes',
+              ),
               const SizedBox(width: 10),
               _Estadistica(
                 Icons.check_circle,
@@ -787,7 +758,7 @@ class PantallaProgreso extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Horas por taller',
+                  'Sesiones por taller',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
 
@@ -800,34 +771,14 @@ class PantallaProgreso extends StatelessWidget {
                         MiniaturaTaller(i.taller, size: 38),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                i.taller.nombre,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: LinearProgressIndicator(
-                                  value: (s.horasDe(i.folio) / metaHoras).clamp(
-                                    0.0,
-                                    1.0,
-                                  ),
-                                  minHeight: 6,
-                                  backgroundColor: ColoresApp.background,
-                                  color: ColoresApp.teal,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            i.taller.nombre,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          '${s.horasDe(i.folio)} h',
+                          '${s.horasDe(i.folio)} ${s.horasDe(i.folio) == 1 ? 'sesión' : 'sesiones'}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -839,116 +790,6 @@ class PantallaProgreso extends StatelessWidget {
           const SizedBox(height: 12),
           _Recomendaciones(s),
         ],
-      ),
-    );
-  }
-}
-
-// ───────────────────── Editar perfil ─────────────────────
-class PantallaEditarPerfil extends StatefulWidget {
-  const PantallaEditarPerfil({super.key});
-  @override
-  State<PantallaEditarPerfil> createState() => _EstadoPantallaEditarPerfil();
-}
-
-class _EstadoPantallaEditarPerfil extends State<PantallaEditarPerfil> {
-  final _form = GlobalKey<FormState>();
-  late final _nombre = TextEditingController(
-    text: context.read<EstadoApp>().alumno.nombreCompleto,
-  );
-  late final _tel = TextEditingController(
-    text: context.read<EstadoApp>().alumno.telefono ?? '',
-  );
-
-  @override
-  void dispose() {
-    _nombre.dispose();
-    _tel.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    if (!_form.currentState!.validate()) return;
-    context.read<EstadoApp>().actualizarPerfil(_nombre.text, _tel.text);
-    final m = ScaffoldMessenger.of(context);
-    context.pop();
-    m.showSnackBar(avisoSnack(content: Text('Perfil actualizado')));
-  }
-
-  Widget _label(String t) => Padding(
-    padding: const EdgeInsets.only(top: 16, bottom: 8),
-    child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold)),
-  );
-
-  Widget _locked(IconData icon, String value) => TextFormField(
-    initialValue: value,
-    enabled: false,
-    decoration: InputDecoration(prefixIcon: Icon(icon)),
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    final a = context.read<EstadoApp>().alumno;
-    return _Sub(
-      'Editar perfil',
-      Form(
-        key: _form,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Center(
-              child: CircleAvatar(
-                radius: 44,
-                backgroundColor: ColoresApp.navy,
-                child: Text(
-                  inicialesDe(a.nombre),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            Center(
-              child: TextButton(
-                onPressed: () => _soon(context),
-                child: const Text('Cambiar foto'),
-              ),
-            ),
-            _label('Nombre completo'),
-            TextFormField(
-              controller: _nombre,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.person)),
-              validator: (v) =>
-                  (v ?? '').trim().split(RegExp(r'\s+')).length >= 2
-                  ? null
-                  : 'Escribe nombre y apellido',
-            ),
-            _label('Correo institucional'),
-            _locked(Icons.email, a.correo),
-            _label('Teléfono'),
-            TextFormField(
-              controller: _tel,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.phone)),
-              validator: (v) {
-                final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
-                return d.length == 10 ? null : 'Escribe 10 dígitos';
-              },
-            ),
-            _label('Número de control'),
-            _locked(Icons.school, a.numeroControl),
-            _label('Grupo'),
-            _locked(Icons.groups, a.grupo),
-            const SizedBox(height: 28),
-            FilledButton(
-              onPressed: _save,
-              child: const Text('Guardar cambios'),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1109,48 +950,25 @@ class _Recomendaciones extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = s.horasRealizadas;
-    final faltan = (metaHoras - h).clamp(0, metaHoras);
     final mias = s.misInscripciones;
-    final sesionesSemana = mias.fold<int>(
-      0,
-      (a, i) => a + i.taller.horarios.length,
-    );
-    final maxHoras = mias.isEmpty
-        ? 2
-        : mias
-              .map((i) => i.taller.horasPorSesion)
-              .reduce((a, b) => a > b ? a : b);
-    final porSesion = maxHoras < 1 ? 1 : maxHoras;
 
     final consejos = <(IconData, String)>[];
-    if (faltan == 0) {
-      consejos.add((
-        Icons.emoji_events_rounded,
-        '¡Meta cumplida! Descarga tu constancia final en Mis comprobantes.',
-      ));
-    } else if (mias.isEmpty) {
+    if (mias.isEmpty) {
       consejos.add((
         Icons.add_circle_outline,
-        'Aún no tienes talleres. Inscríbete a una para empezar a sumar horas.',
+        'Aún no tienes talleres. Inscríbete a uno para empezar a sumar sesiones.',
       ));
     } else {
-      final sesiones = (faltan / porSesion).ceil();
-      final semanas = (sesiones / (sesionesSemana == 0 ? 1 : sesionesSemana))
-          .ceil();
       consejos.add((
-        Icons.flag_rounded,
-        'Te faltan $faltan h (unas $sesiones sesiones). Si no faltas, terminas en ~$semanas semanas.',
+        Icons.emoji_events_rounded,
+        h == 0
+            ? 'Todavía no tienes sesiones registradas en tus talleres.'
+            : 'Llevas $h ${h == 1 ? 'sesión' : 'sesiones'} acumuladas. ¡Descarga tu constancia en Mis comprobantes!',
       ));
       if (s.porcentajeAsistencia < 85) {
         consejos.add((
           Icons.event_available_rounded,
           'Tu asistencia es de ${s.porcentajeAsistencia} %. Procura no faltar para que cada sesión sume.',
-        ));
-      }
-      if (mias.length == 1 && faltan > 20) {
-        consejos.add((
-          Icons.add_task_rounded,
-          'Con una segunda taller a llegarías más rápido a tu meta.',
         ));
       }
     }
@@ -1197,7 +1015,7 @@ class _Recomendaciones extends StatelessWidget {
                 ],
               ),
             ),
-          if (faltan > 0 && sugeridas.isNotEmpty) ...[
+          if (sugeridas.isNotEmpty) ...[
             const Divider(height: 24),
             const Text(
               'Talleres para ti',

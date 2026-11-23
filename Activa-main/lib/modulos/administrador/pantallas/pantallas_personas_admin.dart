@@ -5,7 +5,6 @@ import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/utilidades/formateadores.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/constantes_app.dart';
 
 class PantallaAlumnosAdmin extends StatefulWidget {
   const PantallaAlumnosAdmin({super.key});
@@ -39,9 +38,8 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
     final lista = todos.where((a) {
       final h = s.horasAlumno(a);
       final ok = switch (_f) {
-        1 => h >= metaHoras,
-        2 => h > 0 && h < metaHoras,
-        3 => h == 0,
+        1 => h > 0,
+        2 => h == 0,
         _ => true,
       };
       final okGrupo = _grupoFiltro == null || a.grupo == _grupoFiltro;
@@ -85,9 +83,8 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
               children: [
                 for (final (i, n) in [
                   'Todos',
-                  'Con 60 h',
-                  'En proceso',
-                  'Sin Taller',
+                  'Con sesiones',
+                  'Sin sesiones',
                 ].indexed) ...[
                   ChoiceChip(
                     label: Text(n),
@@ -120,7 +117,7 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
                 child: DropdownButtonFormField<String?>(
                   initialValue: _carreraFiltro,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Carrera'),
+                  decoration: const InputDecoration(labelText: 'Especialidad'),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Todas')),
                     for (final c in carreras)
@@ -144,7 +141,7 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
             Builder(
               builder: (_) {
                 final h = s.horasAlumno(a);
-                final completo = h >= metaHoras;
+                final tieneSesiones = h > 0;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: TarjetaApp(
@@ -178,28 +175,18 @@ class _EstadoPantallaAlumnosAdmin extends State<PantallaAlumnosAdmin> {
                                   fontSize: 11,
                                 ),
                               ),
-                              const SizedBox(height: 6),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: LinearProgressIndicator(
-                                  value: (h / metaHoras).clamp(0.0, 1.0),
-                                  minHeight: 6,
-                                  backgroundColor: ColoresApp.background,
-                                  color: completo
-                                      ? ColoresApp.teal
-                                      : ColoresApp.primary,
-                                ),
-                              ),
                             ],
                           ),
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          '$h / $metaHoras h',
+                          '$h ${h == 1 ? 'sesión' : 'sesiones'}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
-                            color: completo ? ColoresApp.teal : Colors.black87,
+                            color: tieneSesiones
+                                ? ColoresApp.teal
+                                : Colors.black87,
                           ),
                         ),
                       ],

@@ -81,7 +81,7 @@ class PantallaInscripcionExitosa extends StatelessWidget {
               child: Column(
                 children: [
                   _Fila('Nombre', ins.alumno.nombreCompleto),
-                  _Fila('Número de control', ins.alumno.numeroControl),
+                  _Fila('Matrícula', ins.alumno.numeroControl),
                   _Fila('talleres', t.nombre),
                   _Fila('Horario', t.horarioTexto.replaceAll(' | ', ' · ')),
                   _Fila('Lugar', t.lugar),

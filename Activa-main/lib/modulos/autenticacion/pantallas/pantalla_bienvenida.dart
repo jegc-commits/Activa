@@ -64,7 +64,7 @@ class PantallaBienvenida extends StatelessWidget {
                       AparicionSuave(
                         delay: _ms * 350,
                         child: const Text(
-                          'Tu universidad también\nse vive fuera del aula',
+                          'Tu escuela también\nse vive fuera del aula',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,

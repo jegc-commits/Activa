@@ -14,7 +14,6 @@ import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../nucleo/componentes/aparicion_suave.dart';
 import '../../../nucleo/utilidades/formateadores.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/constantes_app.dart';
 import '../componentes/miniatura_taller.dart';
 import '../componentes/tarjeta_taller.dart';
 
@@ -34,12 +33,9 @@ class PantallaInicioAlumno extends StatelessWidget {
     final nombre = state.alumno.nombre.split(' ').first;
     // saca las iniciales para el avatar
     final iniciales = inicialesDe(nombre);
-    // horas paraescolares o clubs que lleva el alumno
-    final horas = state.horasRealizadas;
-    // horas que le faltanm clamp evita que salga negativo
-    final faltan = (metaHoras - horas).clamp(0, metaHoras);
-    // progreso de 0.0 a 1.0 para el círculo
-    final progreso = (horas / metaHoras).clamp(0.0, 1.0).toDouble();
+    // sesiones de paraescolares o clubs que lleva acumuladas el alumno
+    // (una por cada vez que el instructor lo marca presente; no hay tope)
+    final sesiones = state.horasRealizadas;
     // busca una actividad con cupo y donde NO esté inscrito
     final sugerido =
         state.talleres
@@ -92,7 +88,7 @@ class PantallaInicioAlumno extends StatelessWidget {
                               ),
                               // Frase pequeña debajo del saludo
                               Text(
-                                'Descubre, participa y vive tu universidad.',
+                                'Vive tu escuela.',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.75),
                                   fontSize: 13,
@@ -153,45 +149,37 @@ class PantallaInicioAlumno extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          // Círculo de progreso animado de 0 hasta el valor real
+                          // Círculo con el total de sesiones acumuladas
+                          // (sin barra de progreso: ya no hay meta ni tope)
                           TweenAnimationBuilder<double>(
-                            // De 0 a tu progreso
-                            tween: Tween(begin: 0, end: progreso),
-                            // Dura 1.2 segundos
-                            duration: const Duration(milliseconds: 1200),
-                            // Empieza rápido y termina suave
+                            tween: Tween(begin: 0, end: sesiones.toDouble()),
+                            duration: const Duration(milliseconds: 900),
                             curve: Curves.easeOutCubic,
-                            // v es el valor actual de la animación
                             builder: (_, v, _) => SizedBox(
                               width: 78,
                               height: 78,
-                              // Stack pone el porcentaje encima del círculo
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  // SizedBox.expand hace que el círculo llene los 78x78
                                   SizedBox.expand(
                                     child: CircularProgressIndicator(
-                                      value: v,
+                                      value: 1,
                                       strokeWidth: 7,
-                                      // Parte del círculo que falta
                                       backgroundColor: Colors.white.withValues(
                                         alpha: 0.18,
                                       ),
-                                      // Parte del círculo que ya llevas
                                       color: ColoresApp.sky,
-                                      // Puntas redondeadas
                                       strokeCap: StrokeCap.round,
                                     ),
                                   ),
-                                  // Porcentaje en el centro
+                                  // Número de sesiones en el centro
                                   Text(
-                                    '${(v * 100).round()}%',
+                                    '${v.round()}',
                                     style: TextStyle(
                                       fontFamily: FuentesApp.century,
                                       color: Colors.white,
                                       fontWeight: FontWeight.w700,
-                                      fontSize: 16,
+                                      fontSize: 22,
                                     ),
                                   ),
                                 ],
@@ -229,9 +217,9 @@ class PantallaInicioAlumno extends StatelessWidget {
                                     ],
                                   ),
                                 ),
-                                // Ejemplo: "20 / 60 horas"
+                                // Ejemplo: "23 sesiones"
                                 Text(
-                                  '$horas / $metaHoras horas',
+                                  '$sesiones ${sesiones == 1 ? 'sesión' : 'sesiones'}',
                                   style: TextStyle(
                                     fontFamily: FuentesApp.century,
                                     color: Colors.white,
@@ -240,11 +228,10 @@ class PantallaInicioAlumno extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                // Mensaje según si ya completó las horas o no
                                 Text(
-                                  faltan == 0
-                                      ? '¡Completaste tus horas!'
-                                      : 'Te faltan $faltan horas, ¡tú puedes!',
+                                  sesiones == 0
+                                      ? 'Inscríbete a un taller para empezar'
+                                      : '¡Sigue sumando sesiones!',
                                   style: const TextStyle(
                                     color: ColoresApp.sky,
                                     fontSize: 12,

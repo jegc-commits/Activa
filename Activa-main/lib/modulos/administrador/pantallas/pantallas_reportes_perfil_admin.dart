@@ -56,8 +56,8 @@ class _EstadoReportes extends State<PantallaReportes> {
       (m, t) => t.inscritos > m ? t.inscritos : m,
     );
     final alumnos = s.todosAlumnos;
-    final con60 = alumnos.where((a) => s.horasAlumno(a) >= metaHoras).length;
-    final pct = alumnos.isEmpty ? 0.0 : con60 / alumnos.length;
+    final conSesiones = alumnos.where((a) => s.horasAlumno(a) > 0).length;
+    final pct = alumnos.isEmpty ? 0.0 : conSesiones / alumnos.length;
 
     return SafeArea(
       child: ListView(
@@ -207,11 +207,11 @@ class _EstadoReportes extends State<PantallaReportes> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Alumnos con 60 horas',
+                          'Alumnos con sesiones',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          '$con60 de ${alumnos.length} alumnos ya completaron su taller paraescolar.',
+                          '$conSesiones de ${alumnos.length} alumnos ya tienen sesiones registradas.',
                           style: const TextStyle(
                             color: Colors.black54,
                             fontSize: 12,
@@ -373,14 +373,14 @@ class PantallaPerfilAdmin extends StatelessWidget {
                     () => context.push('/admin/periodo'),
                   ),
                   _item(
-                    Icons.description,
-                    'Validación de horas',
-                    () => context.push('/admin/validacion-horas'),
-                  ),
-                  _item(
                     Icons.notifications,
                     'Avisos generales',
                     () => context.push('/admin/avisos'),
+                  ),
+                  _item(
+                    Icons.school_outlined,
+                    'Especialidades',
+                    () => context.push('/admin/especialidades'),
                   ),
                   _item(
                     Icons.edit,

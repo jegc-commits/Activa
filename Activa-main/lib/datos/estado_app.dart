@@ -30,6 +30,9 @@ class EstadoApp extends ChangeNotifier {
     _categorias
       ..clear()
       ..addAll(datos.categorias);
+    _especialidades
+      ..clear()
+      ..addAll(datos.especialidades);
     _talleres
       ..clear()
       ..addAll(datos.talleres);
@@ -133,6 +136,14 @@ class EstadoApp extends ChangeNotifier {
         i.alumno.numeroControl == alumno.numeroControl,
   );
 
+  List<Inscripcion> inscripcionesDeAlumno(String numeroControl) => _inscripciones
+      .where(
+        (i) =>
+            i.estado == EstadoInscripcion.activa &&
+            i.alumno.numeroControl == numeroControl,
+      )
+      .toList();
+
   Inscripcion? inscripcionPorFolio(String folio) {
     for (final i in _inscripciones) {
       if (i.folio == folio) return i;
@@ -200,6 +211,36 @@ class EstadoApp extends ChangeNotifier {
   void agregarCategoria(Categoria c) {
     _categorias.add(c);
     _guardar((r) => r.guardarCategoria(c));
+    notifyListeners();
+  }
+
+  final List<String> _especialidades = [];
+
+  /// Especialidades disponibles en el registro de alumno, en orden
+  /// alfabético. El admin las administra desde la pantalla de
+  /// Especialidades (agregar / eliminar).
+  List<String> get especialidades => List.unmodifiable(_especialidades);
+
+  /// Agrega una especialidad nueva. Regresa false si ya existía (sin
+  /// distinguir mayúsculas/minúsculas) o si venía vacía.
+  bool agregarEspecialidad(String nombre) {
+    final limpio = nombre.trim();
+    if (limpio.isEmpty) return false;
+    final yaExiste = _especialidades.any(
+      (e) => e.toLowerCase() == limpio.toLowerCase(),
+    );
+    if (yaExiste) return false;
+    _especialidades
+      ..add(limpio)
+      ..sort();
+    _guardar((r) => r.agregarEspecialidad(limpio));
+    notifyListeners();
+    return true;
+  }
+
+  void eliminarEspecialidad(String nombre) {
+    _especialidades.remove(nombre);
+    _guardar((r) => r.eliminarEspecialidad(nombre));
     notifyListeners();
   }
 
@@ -342,7 +383,9 @@ class EstadoApp extends ChangeNotifier {
     final k = _key(t.id, f);
     final antes = _asistencias[k] ?? const <String, bool>{};
 
-    // Calcula las horas de cada alumno marcado en esta lista.
+    // Cuenta las sesiones de cada alumno marcado en esta lista (1 sesión
+    // por cada vez que el instructor lo marca presente, sin importar la
+    // duración del taller).
     final cambios = <String, int>{};
     for (final e in marcas.entries) {
       final ins = _inscripciones
@@ -359,9 +402,9 @@ class EstadoApp extends ChangeNotifier {
       final esP = e.value;
       final actual = _horas[ins.folio] ?? 0;
       if (!eraP && esP) {
-        _horas[ins.folio] = actual + t.horasPorSesion;
+        _horas[ins.folio] = actual + 1;
       } else if (eraP && !esP) {
-        final nuevo = actual - t.horasPorSesion;
+        final nuevo = actual - 1;
         _horas[ins.folio] = nuevo < 0 ? 0 : nuevo;
       }
       if (_horas[ins.folio] != actual) {
@@ -429,7 +472,7 @@ class EstadoApp extends ChangeNotifier {
     return total == 0 ? 0 : (asistidas * 100 / total).round();
   }
 
-  /// Horas acumuladas por el alumno actual durante el mes en curso.
+  /// Sesiones a las que asistió el alumno actual durante el mes en curso.
   int get horasDelMes {
     final nc = alumno.numeroControl;
     if (nc.isEmpty) return 0;
@@ -443,7 +486,7 @@ class EstadoApp extends ChangeNotifier {
       if (tallerId == null || fecha == null) continue;
       if (fecha.year != ahora.year || fecha.month != ahora.month) continue;
       final taller = _talleres.where((t) => t.id == tallerId).firstOrNull;
-      if (taller != null) total += taller.horasPorSesion;
+      if (taller != null) total += 1;
     }
     return total;
   }

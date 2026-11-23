@@ -216,7 +216,7 @@ class _EstadoEditarPerfilGeneral extends State<PantallaEditarPerfilGeneral> {
                 decoration: const InputDecoration(prefixIcon: Icon(Icons.phone)),
                 validator: (v) => (v ?? '').length == 10 ? null : 'Escribe 10 dígitos',
               ),
-              _etiqueta('Número de control'),
+              _etiqueta('Matrícula'),
               _bloqueado(Icons.school, a.numeroControl),
               _etiqueta('Grupo'),
               _bloqueado(Icons.groups, a.grupo),

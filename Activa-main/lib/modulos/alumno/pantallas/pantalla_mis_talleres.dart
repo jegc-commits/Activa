@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../datos/estado_app.dart';
-import '../../../datos/constantes_app.dart';
 import '../../../modelos/inscripcion.dart';
 import '../componentes/miniatura_taller.dart';
 import '../../../nucleo/componentes/avisos.dart';
@@ -106,10 +105,10 @@ class PantallaMisTalleres extends StatelessWidget {
     );
   }
 
-  // ---------- Tarjeta de horas con degradado ----------
-  Widget _tarjetaHoras(int h) {
-    final progreso = (h / metaHoras).clamp(0.0, 1.0);
-    final faltan = metaHoras - h;
+  // ---------- Tarjeta de sesiones acumuladas, con degradado ----------
+  // Ya no hay meta ni porcentaje: solo el conteo de sesiones en las que
+  // el instructor marcó presente al alumno, sin tope.
+  Widget _tarjetaHoras(int sesiones) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -132,11 +131,11 @@ class PantallaMisTalleres extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.schedule_rounded, color: Colors.white),
+              const Icon(Icons.event_available_rounded, color: Colors.white),
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'Horas acumuladas',
+                  'Sesiones acumuladas',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -144,59 +143,22 @@ class PantallaMisTalleres extends StatelessWidget {
                   ),
                 ),
               ),
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: progreso),
-                duration: const Duration(milliseconds: 1300),
-                curve: Curves.easeOutCubic,
-                builder: (_, v, __) => Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${(v * 100).round()}%',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
           Text(
-            '$h / $metaHoras h',
+            '$sesiones ${sesiones == 1 ? 'sesión' : 'sesiones'}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 30,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 12),
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: progreso),
-            duration: const Duration(milliseconds: 1300),
-            curve: Curves.easeOutCubic,
-            builder: (_, v, __) => ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: v,
-                minHeight: 12,
-                backgroundColor: Colors.white.withValues(alpha: 0.25),
-                valueColor: const AlwaysStoppedAnimation(Colors.white),
-              ),
-            ),
-          ),
           const SizedBox(height: 10),
           Text(
-            faltan <= 0
-                ? '¡Meta cumplida! 🎉'
-                : 'Te faltan $faltan horas, ¡tú puedes!',
+            sesiones == 0
+                ? 'Inscríbete a un taller para empezar a sumar'
+                : '¡Sigue sumando sesiones!',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.9),
               fontSize: 13,

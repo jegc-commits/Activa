@@ -32,7 +32,7 @@ class BaseDatos {
   factory BaseDatos.pruebas(DatabaseFactory fabrica, String ruta) =>
       BaseDatos._(fabrica: fabrica, ruta: ruta);
 
-  static const _version = 2;
+  static const _version = 4;
   final DatabaseFactory? _fabrica;
   final String? _ruta;
   Database? _db;
@@ -84,6 +84,7 @@ class BaseDatos {
       'contadores',
       'usuarios',
       'reportes',
+      'horas_validadas',
       'bajas',
       'favoritos',
       'solicitudes',
@@ -123,6 +124,14 @@ class BaseDatos {
         color INTEGER NOT NULL,
         icono TEXT NOT NULL,
         activa INTEGER NOT NULL DEFAULT 1
+      )
+      ''',
+      // catálogo de especialidades que se piden al registrarse (lo
+      // administra el admin: agregar/eliminar desde la app)
+      '''
+      CREATE TABLE especialidades_alumno (
+        id INTEGER PRIMARY KEY,
+        nombre TEXT NOT NULL UNIQUE
       )
       ''',
       // ---------- personas ----------
@@ -292,6 +301,13 @@ class BaseDatos {
         total INTEGER NOT NULL DEFAULT 0
       )
       ''',
+      // alumnos cuya constancia final ya revisó y confirmó la coordinación
+      '''
+      CREATE TABLE horas_validadas (
+        numero_control TEXT PRIMARY KEY,
+        fecha TEXT NOT NULL
+      )
+      ''',
       '''
       CREATE TABLE reportes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -350,6 +366,14 @@ class BaseDatos {
           'color': c.colorValue,
           'icono': c.icono,
           'activa': c.activa ? 1 : 0,
+        });
+      }
+
+      // especialidades con las que arranca el registro de alumno
+      for (var i = 0; i < especialidadesIniciales.length; i++) {
+        await txn.insert('especialidades_alumno', {
+          'id': i + 1,
+          'nombre': especialidadesIniciales[i],
         });
       }
 

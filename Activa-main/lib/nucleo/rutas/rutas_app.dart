@@ -350,12 +350,12 @@ final enrutadorApp = GoRouter(
       builder: (_, _) => const PantallaPeriodoEscolar(),
     ),
     GoRoute(
-      path: '/admin/validacion-horas',
-      builder: (_, _) => const PantallaValidacionHoras(),
-    ),
-    GoRoute(
       path: '/admin/avisos',
       builder: (_, _) => const PantallaAvisosGenerales(),
+    ),
+    GoRoute(
+      path: '/admin/especialidades',
+      builder: (_, _) => const PantallaEspecialidades(),
     ),
   ],
 );
