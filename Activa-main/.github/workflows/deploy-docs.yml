@@ -50,4 +50,5 @@ jobs:
             git push
           fi
 
-flutter build web --release --base-href "/Activa/"          
+  
+flutter build web --release --base-href "/Activa/"        
