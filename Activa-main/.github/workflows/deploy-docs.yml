@@ -49,3 +49,5 @@ jobs:
             git commit -m "Actualiza build web en /docs"
             git push
           fi
+
+flutter build web --release --base-href "/Activa/"          
