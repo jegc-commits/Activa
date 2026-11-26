@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:activa/modelos/taller.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../modelos/enums.dart';
 import '../modelos/inscripcion.dart';
@@ -10,105 +11,410 @@ import '../nucleo/utilidades/formateadores.dart';
 import '../modelos/usuario.dart';
 import '../modelos/comunicacion.dart';
 import 'almacen_cuentas.dart';
-import 'bd/base_datos.dart';
-import 'bd/repositorio_activa.dart';
 
 class EstadoApp extends ChangeNotifier {
   EstadoApp([this._almacen]);
 
-  /// Archivo JSON con las cuentas (alumnos registrados e instructores del admin)
   final AlmacenCuentas? _almacen;
+  final SupabaseClient _db = Supabase.instance.client;
 
-  RepositorioActiva? _repo;
-
-  /// Lee todos los datos desde SQLite y deja la app lista para usarse.
-  Future<void> cargar() async {
-    final repo = RepositorioActiva(await BaseDatos.instancia.abrir());
-    _repo = repo;
-    final datos = await repo.cargarTodo();
-
-    _categorias
-      ..clear()
-      ..addAll(datos.categorias);
-    _especialidades
-      ..clear()
-      ..addAll(datos.especialidades);
-    _talleres
-      ..clear()
-      ..addAll(datos.talleres);
-    _inscripciones
-      ..clear()
-      ..addAll(datos.inscripciones);
-    _favoritos
-      ..clear()
-      ..addAll(datos.favoritos);
-    _horas
-      ..clear()
-      ..addAll(datos.horasPorFolio);
-    _horasOtros
-      ..clear()
-      ..addAll(datos.horasAlumnos);
-    _avisos
-      ..clear()
-      ..addAll(datos.avisos);
-    _avisosLeidos
-      ..clear()
-      ..addAll(datos.avisosLeidos);
-    _avisosArchivados
-      ..clear()
-      ..addAll(datos.avisosArchivados);
-    _encuestas
-      ..clear()
-      ..addAll(datos.encuestas);
-    _solicitudes
-      ..clear()
-      ..addAll(datos.solicitudes);
-    _bajas
-      ..clear()
-      ..addAll(datos.bajas);
-    _reportes
-      ..clear()
-      ..addAll(datos.reportes);
-    _alumnos
-      ..clear()
-      ..addAll(datos.alumnos);
-    _instructores
-      ..clear()
-      ..addAll(datos.instructores);
-    _roster
-      ..clear()
-      ..addAll({for (final e in datos.roster.entries) e.key: List.of(e.value)});
-    _chats
-      ..clear()
-      ..addAll({for (final e in datos.chats.entries) e.key: List.of(e.value)});
-    _chatsAnclados
-      ..clear()
-      ..addAll(datos.chatsAnclados);
-    _fondosChat
-      ..clear()
-      ..addAll(datos.fondosChat);
-    _asistencias
-      ..clear()
-      ..addAll(await repo.cargarAsistencias());
-
-    _seq = datos.contadores['folio'] ?? _seq;
-    _tallerSeq = datos.contadores['taller'] ?? _tallerSeq;
-    _instSeq = datos.contadores['instructor'] ?? _instSeq;
-    _avisoSeq = datos.contadores['aviso'] ?? _avisoSeq;
-    _msgSeq = datos.contadores['mensaje'] ?? _msgSeq;
-    _encSeq = datos.contadores['encuesta'] ?? _encSeq;
-    _solSeq = datos.contadores['solicitud'] ?? _solSeq;
-
-    notifyListeners();
+  static bool _aBool(Object? v, {bool defecto = false}) {
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    if (v is String) return v.toLowerCase() == 'true' || v == '1';
+    return defecto;
   }
 
-  /// Lanza la escritura en SQLite sin bloquear la interfaz.
-  void _guardar(Future<void> Function(RepositorioActiva repo) accion) {
-    final repo = _repo;
-    if (repo == null) return;
+  static int _aInt(Object? v, {int defecto = 0}) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? defecto;
+    return defecto;
+  }
+
+  /// Lee una tabla y devuelve [] si algo falla (tabla inexistente, RLS,
+  /// red caída...). Así una tabla ausente no tumba toda la carga.
+  Future<List<Map<String, dynamic>>> _leer(
+    String tabla, {
+    String? orden,
+    bool ascendente = true,
+  }) async {
+    try {
+      final consulta = _db.from(tabla).select();
+      final filas = orden == null
+          ? await consulta.timeout(const Duration(seconds: 8))
+          : await consulta
+                .order(orden, ascending: ascendente)
+                .timeout(const Duration(seconds: 8));
+      return List<Map<String, dynamic>>.from(filas);
+    } catch (e) {
+      debugPrint('ACTIVA: no se pudo leer la tabla "$tabla": $e');
+      return const [];
+    }
+  }
+
+  /// Lee los datos compartidos desde Supabase y actualiza el estado.
+  Future<void> cargar() async {
+    try {
+      final results = await Future.wait<List<Map<String, dynamic>>>([
+        _leer('categorias', orden: 'id'),
+        _leer('especialidades_alumno', orden: 'nombre'),
+        _leer('talleres', orden: 'id'),
+        _leer('inscripciones'),
+        _leer('favoritos'),
+        _leer('avisos', orden: 'id', ascendente: false),
+        _leer('mensajes', orden: 'id'),
+        _leer('encuestas', orden: 'id', ascendente: false),
+        _leer('bajas'),
+        _leer('reportes', orden: 'id', ascendente: false),
+        _leer('alumnos'),
+        _leer('asistencias'),
+        _leer('horarios', orden: 'orden'),
+        _leer('aprendizajes', orden: 'orden'),
+        _leer('solicitudes', orden: 'id', ascendente: false),
+        _leer('chats_estado'),
+        _leer('instructores', orden: 'id'),
+      ]);
+
+      // Categorías
+      final catsRows = List<Map<String, dynamic>>.from(results[0]);
+      _categorias
+        ..clear()
+        ..addAll(
+          catsRows.map(
+            (r) => Categoria(
+              id: _aInt(r['id']),
+              clave: (r['clave'] ?? '').toString(),
+              nombre: (r['nombre'] ?? '').toString(),
+              etiqueta: (r['etiqueta'] ?? '').toString(),
+              colorValue: _aInt(r['color']),
+              icono: (r['icono'] ?? '').toString(),
+              activa: _aBool(r['activa'], defecto: true),
+            ),
+          ),
+        );
+
+      // Especialidades
+      final espRows = List<Map<String, dynamic>>.from(results[1]);
+      _especialidades
+        ..clear()
+        ..addAll(espRows.map((r) => (r['nombre'] ?? '').toString()))
+        ..sort();
+
+      // Alumnos
+      final alumRows = List<Map<String, dynamic>>.from(results[10]);
+      _alumnos
+        ..clear()
+        ..addAll(
+          alumRows.map(
+            (r) => Alumno(
+              id: _aInt(r['id']),
+              nombre: (r['nombre'] ?? '').toString(),
+              apellidoPaterno: (r['apellido_paterno'] ?? '').toString(),
+              apellidoMaterno: (r['apellido_materno'] ?? '').toString(),
+              correo: (r['correo'] ?? '').toString(),
+              telefono: (r['telefono'] ?? '').toString().isEmpty
+                  ? null
+                  : (r['telefono'] ?? '').toString(),
+              numeroControl: (r['numero_control'] ?? '').toString(),
+              grupo: (r['grupo'] ?? '').toString(),
+              carrera: (r['carrera'] ?? '').toString(),
+            ),
+          ),
+        );
+
+      // Horarios y aprendizajes (se usan al construir los talleres)
+      final horariosPorTaller = <int, List<Horario>>{};
+      for (final r in List<Map<String, dynamic>>.from(results[12])) {
+        final tId = _aInt(r['taller_id']);
+        final dia = Dia.values.firstWhere(
+          (d) => d.index == _aInt(r['dia']),
+          orElse: () => Dia.lunes,
+        );
+        horariosPorTaller.putIfAbsent(tId, () => []).add(
+          Horario(
+            dia,
+            (r['hora_inicio'] ?? '').toString(),
+            (r['hora_fin'] ?? '').toString(),
+          ),
+        );
+      }
+      final aprendizajesPorTaller = <int, List<String>>{};
+      for (final r in List<Map<String, dynamic>>.from(results[13])) {
+        aprendizajesPorTaller
+            .putIfAbsent(_aInt(r['taller_id']), () => [])
+            .add((r['texto'] ?? '').toString());
+      }
+
+      // Talleres
+      final talleresRows = List<Map<String, dynamic>>.from(results[2]);
+      final catPorId = {for (final c in _categorias) c.id: c};
+      final instCuentas = _almacen?.instructores ?? const <CuentaGuardada>[];
+      final instPorId = {for (final c in instCuentas) c.id: c.aInstructor()};
+
+      _talleres
+        ..clear()
+        ..addAll(
+          talleresRows.map((r) {
+            final tId = _aInt(r['id']);
+            final cat =
+                catPorId[_aInt(r['categoria_id'])] ??
+                (_categorias.isNotEmpty
+                    ? _categorias.first
+                    : const Categoria(
+                        id: 1,
+                        clave: 'general',
+                        nombre: 'General',
+                        etiqueta: 'General',
+                        colorValue: 0xFF2196F3,
+                        icono: 'star',
+                      ));
+            final inst =
+                instPorId[_aInt(r['instructor_id'])] ??
+                Instructor(
+                  id: _aInt(r['instructor_id']),
+                  nombre: 'Instructor',
+                  apellidoPaterno: '',
+                  correo: '',
+                  especialidad: '',
+                );
+            return Taller(
+              id: tId,
+              nombre: (r['nombre'] ?? '').toString(),
+              descripcion: (r['descripcion'] ?? '').toString(),
+              categoria: cat,
+              lugar: (r['lugar'] ?? '').toString(),
+              cupoMaximo: _aInt(r['cupo_maximo'], defecto: 20),
+              horasOtorga: _aInt(r['horas_otorga'], defecto: 60),
+              activo: _aBool(r['activo'], defecto: true),
+              instructor: inst,
+              horarios: horariosPorTaller[tId] ?? const [],
+              aprendizajes: aprendizajesPorTaller[tId] ?? const [],
+              inscritos: _aInt(r['inscritos']),
+            );
+          }),
+        );
+
+      final maxTallerId = _talleres.fold<int>(0, (a, t) => t.id > a ? t.id : a);
+      if (maxTallerId >= _tallerSeq) _tallerSeq = maxTallerId + 1;
+
+      // Inscripciones
+      final insRows = List<Map<String, dynamic>>.from(results[3]);
+      final tallerPorIdMap = {for (final t in _talleres) t.id: t};
+      final alumnoPorIdMap = {for (final a in todosAlumnos) a.id: a};
+      _inscripciones.clear();
+      _horas.clear();
+      for (final r in insRows) {
+        final tId = _aInt(r['taller_id']);
+        final aId = _aInt(r['alumno_id']);
+        final t = tallerPorIdMap[tId];
+        final al = alumnoPorIdMap[aId];
+        if (t == null || al == null) continue;
+        final estadoStr = (r['estado'] ?? 'activa').toString();
+        final estado = estadoStr == 'cancelada'
+            ? EstadoInscripcion.cancelada
+            : EstadoInscripcion.activa;
+        final folio = (r['folio'] ?? '').toString();
+        _inscripciones.add(
+          Inscripcion(
+            folio: folio,
+            alumno: al,
+            taller: t,
+            estado: estado,
+            fechaInscripcion:
+                DateTime.tryParse((r['fecha'] ?? '').toString()) ??
+                DateTime.now(),
+          ),
+        );
+        _horas[folio] = _aInt(r['horas']);
+      }
+
+      // Favoritos
+      final favRows = List<Map<String, dynamic>>.from(results[4]);
+      _favoritos
+        ..clear()
+        ..addAll(favRows.map((r) => _aInt(r['taller_id'])));
+
+      // Avisos
+      final avisosRows = List<Map<String, dynamic>>.from(results[5]);
+      _avisos.clear();
+      _avisosLeidos.clear();
+      _avisosArchivados.clear();
+      for (final r in avisosRows) {
+        final id = _aInt(r['id']);
+        final tipoNombre = (r['tipo'] ?? '').toString();
+        final tipo = TipoAviso.values.firstWhere(
+          (e) => e.name == tipoNombre,
+          orElse: () => TipoAviso.values.first,
+        );
+        _avisos.add(
+          Aviso(
+            id: id,
+            tallerId: r['taller_id'] == null ? null : _aInt(r['taller_id']),
+            tipo: tipo,
+            titulo: (r['titulo'] ?? '').toString(),
+            mensaje: (r['mensaje'] ?? '').toString(),
+            fecha:
+                DateTime.tryParse((r['fecha'] ?? '').toString()) ??
+                DateTime.now(),
+          ),
+        );
+        if (_aBool(r['leido'])) _avisosLeidos.add(id);
+        if (_aBool(r['archivado'])) _avisosArchivados.add(id);
+      }
+      final maxAvisoId = _avisos.fold<int>(0, (a, av) => av.id > a ? av.id : a);
+      if (maxAvisoId >= _avisoSeq) _avisoSeq = maxAvisoId + 1;
+
+      // Mensajes
+      final msgRows = List<Map<String, dynamic>>.from(results[6]);
+      _chats.clear();
+      for (final r in msgRows) {
+        final tId = _aInt(r['taller_id']);
+        final rolNombre = (r['rol'] ?? 'alumno').toString();
+        final rol = Rol.values.firstWhere(
+          (e) => e.name == rolNombre,
+          orElse: () => Rol.alumno,
+        );
+        _chats
+            .putIfAbsent(tId, () => [])
+            .add(
+              MensajeChat(
+                id: _aInt(r['id']),
+                tallerId: tId,
+                rol: rol,
+                autor: (r['autor'] ?? '').toString(),
+                texto: (r['texto'] ?? '').toString(),
+                fecha:
+                    DateTime.tryParse((r['fecha'] ?? '').toString()) ??
+                    DateTime.now(),
+              ),
+            );
+      }
+
+      // Encuestas
+      final encRows = List<Map<String, dynamic>>.from(results[7]);
+      _encuestas
+        ..clear()
+        ..addAll(
+          encRows.map(
+            (r) => RespuestaEncuesta(
+              id: _aInt(r['id']),
+              tallerId: _aInt(r['taller_id']),
+              numeroControl: (r['numero_control'] ?? '').toString(),
+              califClub: _aInt(r['calif_club']),
+              califInstructor: _aInt(r['calif_instructor']),
+              comentario: (r['comentario'] ?? '').toString(),
+              fecha:
+                  DateTime.tryParse((r['fecha'] ?? '').toString()) ??
+                  DateTime.now(),
+            ),
+          ),
+        );
+
+      // Bajas
+      final bajasRows = List<Map<String, dynamic>>.from(results[8]);
+      _bajas
+        ..clear()
+        ..addAll({
+          for (final r in bajasRows) _aInt(r['taller_id']): _aInt(r['total']),
+        });
+
+      // Reportes
+      final repRows = List<Map<String, dynamic>>.from(results[9]);
+      _reportes
+        ..clear()
+        ..addAll(
+          repRows.map(
+            (r) => (
+              tipo: (r['tipo'] ?? '').toString(),
+              formato: (r['formato'] ?? '').toString(),
+              fecha:
+                  DateTime.tryParse((r['fecha'] ?? '').toString()) ??
+                  DateTime.now(),
+            ),
+          ),
+        );
+
+      // Asistencias
+      final asistRows = List<Map<String, dynamic>>.from(results[11]);
+      _asistencias.clear();
+      for (final r in asistRows) {
+        final k = '${_aInt(r['taller_id'])}|${(r['fecha'] ?? '').toString()}';
+        final mapa = _asistencias.putIfAbsent(k, () => <String, bool>{});
+        mapa[(r['numero_control'] ?? '').toString()] = _aBool(r['presente']);
+      }
+
+      // Solicitudes al admin
+      final solRows = List<Map<String, dynamic>>.from(results[14]);
+      _solicitudes
+        ..clear()
+        ..addAll(
+          solRows.map(
+            (r) => SolicitudAdmin(
+              id: _aInt(r['id']),
+              tallerId: _aInt(r['taller_id']),
+              instructorId: _aInt(r['instructor_id']),
+              instructorNombre: (r['instructor_nombre'] ?? '').toString(),
+              tipo: TipoSolicitud.values.firstWhere(
+                (e) => e.name == (r['tipo'] ?? '').toString(),
+                orElse: () => TipoSolicitud.otro,
+              ),
+              mensaje: (r['mensaje'] ?? '').toString(),
+              fecha:
+                  DateTime.tryParse((r['fecha'] ?? '').toString()) ??
+                  DateTime.now(),
+              estado: EstadoSolicitud.values.firstWhere(
+                (e) => e.name == (r['estado'] ?? '').toString(),
+                orElse: () => EstadoSolicitud.pendiente,
+              ),
+              respuesta: (r['respuesta'] ?? '').toString(),
+              cupoExtra: _aInt(r['cupo_extra']),
+            ),
+          ),
+        );
+      final maxSolId = _solicitudes.fold<int>(0, (a, s) => s.id > a ? s.id : a);
+      if (maxSolId >= _solSeq) _solSeq = maxSolId + 1;
+
+      // Estado de chats (anclados y fondo)
+      _chatsAnclados.clear();
+      _fondosChat.clear();
+      for (final r in List<Map<String, dynamic>>.from(results[15])) {
+        final id = _aInt(r['taller_id']);
+        if (_aBool(r['anclado'])) _chatsAnclados.add(id);
+        _fondosChat[id] = _aInt(r['fondo']);
+      }
+
+      // Instructores sin cuenta (los que tienen cuenta ya vienen del almacén)
+      _instructores.clear();
+      for (final r in List<Map<String, dynamic>>.from(results[16])) {
+        _instructores.add(
+          Instructor(
+            id: _aInt(r['id']),
+            nombre: (r['nombre'] ?? '').toString(),
+            apellidoPaterno: (r['apellido_paterno'] ?? '').toString(),
+            apellidoMaterno: (r['apellido_materno'] ?? '').toString(),
+            correo: (r['correo'] ?? '').toString(),
+            telefono: (r['telefono'] ?? '').toString().isEmpty
+                ? null
+                : (r['telefono'] ?? '').toString(),
+            especialidad: (r['especialidad'] ?? '').toString(),
+            activo: _aBool(r['activo'], defecto: true),
+          ),
+        );
+      }
+      final maxInstId = _instructores.fold<int>(0, (a, i) => i.id > a ? i.id : a);
+      if (maxInstId >= _instSeq) _instSeq = maxInstId + 1;
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ACTIVA: error al cargar desde Supabase: $e');
+    }
+  }
+
+  void _guardar(Future<void> Function(SupabaseClient db) accion) {
     unawaited(
-      accion(repo).catchError((Object e, StackTrace _) {
-        debugPrint('ACTIVA: no se pudo guardar en SQLite: $e');
+      accion(_db).catchError((Object e, StackTrace _) {
+        debugPrint('ACTIVA: error escribiendo en Supabase: $e');
       }),
     );
   }
@@ -116,14 +422,14 @@ class EstadoApp extends ChangeNotifier {
   final List<Taller> _talleres = [];
   final List<Inscripcion> _inscripciones = [];
   final Set<int> _favoritos = {};
-  int _seq = 1; // siguiente consecutivo de folio
+  final Map<int, int> _bajas = {};
+  int _seq = 1;
 
   List<Taller> get talleres => List.unmodifiable(_talleres);
   List<Inscripcion> get inscripciones => List.unmodifiable(_inscripciones);
 
   Taller tallerPorId(int id) => _talleres.firstWhere((t) => t.id == id);
 
-  // 👇 NUEVO MÉTODO DE AYUDA: Obtiene el nombre del taller o "Aviso general"
   String nombreDeTaller(int? tallerId) {
     if (tallerId == null) return 'Aviso general';
     return tallerPorId(tallerId).nombre;
@@ -136,13 +442,14 @@ class EstadoApp extends ChangeNotifier {
         i.alumno.numeroControl == alumno.numeroControl,
   );
 
-  List<Inscripcion> inscripcionesDeAlumno(String numeroControl) => _inscripciones
-      .where(
-        (i) =>
-            i.estado == EstadoInscripcion.activa &&
-            i.alumno.numeroControl == numeroControl,
-      )
-      .toList();
+  List<Inscripcion> inscripcionesDeAlumno(String numeroControl) =>
+      _inscripciones
+          .where(
+            (i) =>
+                i.estado == EstadoInscripcion.activa &&
+                i.alumno.numeroControl == numeroControl,
+          )
+          .toList();
 
   Inscripcion? inscripcionPorFolio(String folio) {
     for (final i in _inscripciones) {
@@ -154,12 +461,22 @@ class EstadoApp extends ChangeNotifier {
   bool esFavorito(int id) => _favoritos.contains(id);
 
   void toggleFavorito(int id) {
-    _favoritos.contains(id) ? _favoritos.remove(id) : _favoritos.add(id);
-    _guardar((r) => r.guardarFavorito(id, _favoritos.contains(id)));
+    final ahoraEsFavorito = !_favoritos.contains(id);
+    if (ahoraEsFavorito) {
+      _favoritos.add(id);
+    } else {
+      _favoritos.remove(id);
+    }
+    _guardar((db) async {
+      if (ahoraEsFavorito) {
+        await db.from('favoritos').upsert({'taller_id': id});
+      } else {
+        await db.from('favoritos').delete().eq('taller_id', id);
+      }
+    });
     notifyListeners();
   }
 
-  /// Devuelve la inscripción creada, o null si no se pudo.
   Inscripcion? inscribir(Taller t) {
     final actual = tallerPorId(t.id);
     if (!actual.hayCupo || estaInscrito(t.id)) return null;
@@ -174,12 +491,21 @@ class EstadoApp extends ChangeNotifier {
       fechaInscripcion: DateTime.now(),
     );
     _inscripciones.add(ins);
-    _guardar((r) async {
-      await r.guardarTaller(actualizado);
-      await r.guardarInscripcion(ins);
-      await r.guardarContador('folio', _seq);
+    _guardar((db) async {
+      await db.from('inscripciones').insert({
+        'folio': ins.folio,
+        'alumno_id': alumno.id,
+        'taller_id': actualizado.id,
+        'estado': EstadoInscripcion.activa.name,
+        'fecha': ins.fechaInscripcion.toIso8601String(),
+        'horas': 0,
+      });
+      await db
+          .from('talleres')
+          .update({'inscritos': actualizado.inscritos})
+          .eq('id', actualizado.id);
     });
-    notifyListeners(); // avisa a todas las pantallas que escuchan
+    notifyListeners();
     return ins;
   }
 
@@ -199,7 +525,7 @@ class EstadoApp extends ChangeNotifier {
         .map((c) => _acentos[c] ?? c)
         .join()
         .replaceAll(RegExp(r'[^a-z]'), '');
-    final prefijo = limpio.substring(0, 3).toUpperCase(); // VOL, FUT, DAN...
+    final prefijo = limpio.substring(0, 3).toUpperCase();
     return '$prefijo-2026-${(_seq++).toString().padLeft(4, '0')}';
   }
 
@@ -210,19 +536,23 @@ class EstadoApp extends ChangeNotifier {
 
   void agregarCategoria(Categoria c) {
     _categorias.add(c);
-    _guardar((r) => r.guardarCategoria(c));
+    _guardar((db) async {
+      await db.from('categorias').insert({
+        'clave': c.clave,
+        'nombre': c.nombre,
+        'etiqueta': c.etiqueta,
+        'color': c.colorValue,
+        'icono': c.icono,
+        'activa': c.activa,
+      });
+    });
     notifyListeners();
   }
 
   final List<String> _especialidades = [];
 
-  /// Especialidades disponibles en el registro de alumno, en orden
-  /// alfabético. El admin las administra desde la pantalla de
-  /// Especialidades (agregar / eliminar).
   List<String> get especialidades => List.unmodifiable(_especialidades);
 
-  /// Agrega una especialidad nueva. Regresa false si ya existía (sin
-  /// distinguir mayúsculas/minúsculas) o si venía vacía.
   bool agregarEspecialidad(String nombre) {
     final limpio = nombre.trim();
     if (limpio.isEmpty) return false;
@@ -233,14 +563,18 @@ class EstadoApp extends ChangeNotifier {
     _especialidades
       ..add(limpio)
       ..sort();
-    _guardar((r) => r.agregarEspecialidad(limpio));
+    _guardar((db) async {
+      await db.from('especialidades_alumno').insert({'nombre': limpio});
+    });
     notifyListeners();
     return true;
   }
 
   void eliminarEspecialidad(String nombre) {
     _especialidades.remove(nombre);
-    _guardar((r) => r.eliminarEspecialidad(nombre));
+    _guardar((db) async {
+      await db.from('especialidades_alumno').delete().eq('nombre', nombre);
+    });
     notifyListeners();
   }
 
@@ -291,22 +625,31 @@ class EstadoApp extends ChangeNotifier {
     final idx = _inscripciones.indexWhere((i) => i.folio == folio);
     if (idx < 0) return;
     final ins = _inscripciones[idx];
-    _bajas[ins.taller.id] = (_bajas[ins.taller.id] ?? 0) + 1;
+    final nuevoTotalBajas = (_bajas[ins.taller.id] ?? 0) + 1;
+    _bajas[ins.taller.id] = nuevoTotalBajas;
 
     _inscripciones[idx] = ins.copyWith(estado: EstadoInscripcion.cancelada);
     final ti = _talleres.indexWhere((t) => t.id == ins.taller.id);
-    _talleres[ti] = _talleres[ti].copyWith(
-      inscritos: _talleres[ti].inscritos - 1,
-    );
-    _guardar((r) async {
-      await r.actualizarInscripcion(_inscripciones[idx]);
-      await r.guardarTaller(_talleres[ti]);
-      await r.guardarBaja(ins.taller.id, _bajas[ins.taller.id] ?? 0);
+    final nuevoInscritos = _talleres[ti].inscritos - 1;
+    _talleres[ti] = _talleres[ti].copyWith(inscritos: nuevoInscritos);
+
+    _guardar((db) async {
+      await db
+          .from('inscripciones')
+          .update({'estado': EstadoInscripcion.cancelada.name})
+          .eq('folio', folio);
+      await db
+          .from('talleres')
+          .update({'inscritos': nuevoInscritos})
+          .eq('id', ins.taller.id);
+      await db.from('bajas').upsert({
+        'taller_id': ins.taller.id,
+        'total': nuevoTotalBajas,
+      });
     });
-    notifyListeners(); // se libera el lugar en Explorar
+    notifyListeners();
   }
 
-  // Limitación: asume "nombres + paterno + materno" (los 2 últimos son apellidos).
   void actualizarPerfil(String nombreCompleto, String telefono) {
     final p = nombreCompleto.trim().split(RegExp(r'\s+'));
     alumno = p.length >= 3
@@ -322,7 +665,6 @@ class EstadoApp extends ChangeNotifier {
             apellidoMaterno: '',
             telefono: telefono.trim(),
           );
-    // si la alumna entró con una cuenta guardada, el cambio también va a SQLite
     final c = _almacen?.porId(alumno.id);
     if (c != null && c.rol == Rol.alumno) {
       c.nombre = alumno.nombre;
@@ -335,16 +677,26 @@ class EstadoApp extends ChangeNotifier {
       (a) => a.numeroControl == alumno.numeroControl,
     );
     if (idx >= 0) _alumnos[idx] = alumno;
-    _guardar((r) => r.guardarAlumno(alumno));
+
+    _guardar((db) async {
+      await db.from('alumnos').upsert({
+        'nombre': alumno.nombre,
+        'apellido_paterno': alumno.apellidoPaterno,
+        'apellido_materno': alumno.apellidoMaterno,
+        'correo': alumno.correo,
+        'telefono': alumno.telefono ?? '',
+        'numero_control': alumno.numeroControl,
+        'grupo': alumno.grupo,
+        'carrera': alumno.carrera,
+      }, onConflict: 'numero_control');
+    });
     notifyListeners();
   }
 
   Instructor instructor = instructorVacio;
   final Map<int, List<Alumno>> _roster = {};
-  // clave "tallerId|yyyy-mm-dd" -> {numControl: presente}
   final Map<String, Map<String, bool>> _asistencias = {};
 
-  // para el historial de asistencia del instructor
   Map<String, Map<String, bool>> get asistencias =>
       Map.unmodifiable(_asistencias);
 
@@ -360,11 +712,9 @@ class EstadoApp extends ChangeNotifier {
       if (vistos.add(a.numeroControl)) lista.add(a);
     }
 
-    // roster: alumnos que el instructor ya tenía registrados
     for (final a in _roster[tallerId] ?? const <Alumno>[]) {
       agregar(a);
     }
-    // inscripciones activas: la fuente principal del grupo
     for (final i in _inscripciones) {
       if (i.taller.id == tallerId && i.estado == EstadoInscripcion.activa) {
         agregar(i.alumno);
@@ -383,9 +733,6 @@ class EstadoApp extends ChangeNotifier {
     final k = _key(t.id, f);
     final antes = _asistencias[k] ?? const <String, bool>{};
 
-    // Cuenta las sesiones de cada alumno marcado en esta lista (1 sesión
-    // por cada vez que el instructor lo marca presente, sin importar la
-    // duración del taller).
     final cambios = <String, int>{};
     for (final e in marcas.entries) {
       final ins = _inscripciones
@@ -414,7 +761,6 @@ class EstadoApp extends ChangeNotifier {
 
     _asistencias[k] = Map.of(marcas);
 
-    // Totales por alumno (todas sus inscripciones) para la tabla alumnos.
     final totales = <String, int>{};
     for (final ins in _inscripciones) {
       totales.update(
@@ -424,14 +770,28 @@ class EstadoApp extends ChangeNotifier {
       );
     }
 
-    _guardar((r) async {
+    final fechaTexto = fechaIso(f);
+    _guardar((db) async {
       for (final c in cambios.entries) {
-        await r.guardarHorasFolio(c.key, c.value);
+        await db
+            .from('inscripciones')
+            .update({'horas': c.value})
+            .eq('folio', c.key);
       }
       for (final e in totales.entries) {
-        await r.guardarHorasAlumno(e.key, e.value);
+        await db
+            .from('alumnos')
+            .update({'horas': e.value})
+            .eq('numero_control', e.key);
       }
-      await r.guardarAsistencia(t.id, fechaIso(f), marcas);
+      for (final m in marcas.entries) {
+        await db.from('asistencias').upsert({
+          'taller_id': t.id,
+          'fecha': fechaTexto,
+          'numero_control': m.key,
+          'presente': m.value,
+        }, onConflict: 'taller_id,fecha,numero_control');
+      }
     });
 
     _horasOtros
@@ -440,7 +800,6 @@ class EstadoApp extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Asistencias registradas del alumno [numeroControl] en un taller.
   ({int asistidas, int total}) asistenciaDeAlumno(
     int tallerId,
     String numeroControl,
@@ -457,7 +816,6 @@ class EstadoApp extends ChangeNotifier {
     return (asistidas: asistidas, total: total);
   }
 
-  /// Porcentaje de asistencia del alumno actual (0 si no hay listas).
   int get porcentajeAsistencia {
     final nc = alumno.numeroControl;
     if (nc.isEmpty) return 0;
@@ -472,7 +830,6 @@ class EstadoApp extends ChangeNotifier {
     return total == 0 ? 0 : (asistidas * 100 / total).round();
   }
 
-  /// Sesiones a las que asistió el alumno actual durante el mes en curso.
   int get horasDelMes {
     final nc = alumno.numeroControl;
     if (nc.isEmpty) return 0;
@@ -491,7 +848,6 @@ class EstadoApp extends ChangeNotifier {
     return total;
   }
 
-  /// Porcentaje de asistencia de todos los grupos del instructor actual.
   int get porcentajeAsistenciaInstructor {
     final ids = misGrupos.map((t) => t.id).toSet();
     var asistidas = 0;
@@ -514,30 +870,68 @@ class EstadoApp extends ChangeNotifier {
         .toList();
   }
 
-  // 👇 MODIFICADO: Acepta tallerId nulo
   void publicarAviso({
     required int? tallerId,
     required TipoAviso tipo,
     required String titulo,
     required String mensaje,
   }) {
+    final ahora = DateTime.now();
     final aviso = Aviso(
       id: _avisoSeq++,
       tallerId: tallerId,
       tipo: tipo,
       titulo: titulo.trim(),
       mensaje: mensaje.trim(),
-      fecha: DateTime.now(),
+      fecha: ahora,
     );
     _avisos.insert(0, aviso);
-    _guardar((r) async {
-      await r.guardarAviso(aviso);
-      await r.guardarContador('aviso', _avisoSeq);
+    _guardar((db) async {
+      await db.from('avisos').insert({
+        'taller_id': tallerId,
+        'tipo': tipo.name,
+        'titulo': aviso.titulo,
+        'mensaje': aviso.mensaje,
+        'fecha': ahora.toIso8601String(),
+        'leido': false,
+        'archivado': false,
+      });
     });
     notifyListeners();
   }
 
   Administrador admin = adminVacio;
+
+  /// Pone como "persona actual" a la cuenta con la que se entró.
+  /// Con null deja los perfiles vacíos (explorar sin cuenta).
+  void usarCuenta(CuentaGuardada? c) {
+    if (c != null && c.rol == Rol.alumno) {
+      alumno = c.aAlumno();
+    } else {
+      alumno = alumnoVacio;
+    }
+
+    if (c != null && c.rol == Rol.instructor) {
+      instructor = instructorPorId(c.id) ?? c.aInstructor();
+    } else {
+      instructor = instructorVacio;
+    }
+
+    if (c != null && c.rol == Rol.admin) {
+      admin = Administrador(
+        id: c.id,
+        nombre: c.nombre,
+        apellidoPaterno: c.apellidoPaterno,
+        apellidoMaterno: c.apellidoMaterno,
+        correo: c.correo,
+        cargo: 'Coordinador',
+      );
+    } else {
+      admin = adminVacio;
+    }
+    notifyListeners();
+  }
+
   int _tallerSeq = 1;
   int _instSeq = 1;
   final Map<String, int> _horasOtros = {};
@@ -550,7 +944,6 @@ class EstadoApp extends ChangeNotifier {
     final vistos = {for (final a in _alumnos) a.numeroControl};
     return [
       ..._alumnos,
-      // alumnos que se registraron con "Crear cuenta"
       for (final c in _almacen?.alumnos ?? const <CuentaGuardada>[])
         if (vistos.add(c.numeroControl)) c.aAlumno(),
     ];
@@ -575,9 +968,10 @@ class EstadoApp extends ChangeNotifier {
 
   void guardarTaller(Taller t) {
     final i = _talleres.indexWhere((x) => x.id == t.id);
-    if (i < 0) {
+    final esNuevo = i < 0;
+    if (esNuevo) {
       _talleres.add(t);
-      _tallerSeq++;
+      if (t.id >= _tallerSeq) _tallerSeq = t.id + 1;
     } else {
       _talleres[i] = t;
       for (var k = 0; k < _inscripciones.length; k++) {
@@ -586,14 +980,28 @@ class EstadoApp extends ChangeNotifier {
         }
       }
     }
-    _guardar((r) async {
-      await r.guardarTaller(t);
-      await r.guardarContador('taller', _tallerSeq);
+
+    _guardar((db) async {
+      final datos = <String, dynamic>{
+        'nombre': t.nombre,
+        'descripcion': t.descripcion,
+        'categoria_id': t.categoria.id,
+        'lugar': t.lugar,
+        'cupo_maximo': t.cupoMaximo,
+        'horas_otorga': t.horasOtorga,
+        'activo': t.activo,
+        'instructor_id': t.instructor.id,
+        'inscritos': t.inscritos,
+      };
+      if (esNuevo) {
+        await db.from('talleres').insert(datos);
+      } else {
+        await db.from('talleres').update(datos).eq('id', t.id);
+      }
     });
     notifyListeners();
   }
 
-  /// Devuelve el motivo del choque, o null si no hay traslape.
   String? conflictoHorario(Taller t) {
     for (final o in _talleres) {
       if (o.id == t.id || !o.activo) continue;
@@ -631,267 +1039,20 @@ class EstadoApp extends ChangeNotifier {
       especialidad: especialidad.trim(),
     );
     _instructores.add(instructor);
-    _guardar((r) async {
-      await r.guardarInstructor(instructor);
-      await r.guardarContador('instructor', _instSeq);
+    _guardar((db) async {
+      await db.from('instructores').insert({
+        'nombre': instructor.nombre,
+        'apellido_paterno': instructor.apellidoPaterno,
+        'apellido_materno': instructor.apellidoMaterno,
+        'correo': instructor.correo,
+        'especialidad': instructor.especialidad,
+        'activo': true,
+      });
     });
     notifyListeners();
   }
 
-  void registrarReporte(String tipo, String formato) {
-    final fecha = DateTime.now();
-    _reportes.insert(0, (tipo: tipo, formato: formato, fecha: fecha));
-    _guardar((r) => r.guardarReporte(tipo, formato, fecha));
-    notifyListeners();
-  }
-
-  // ================= CHATS GRUPALES =================
-  final Map<int, List<MensajeChat>> _chats = {};
-  int _msgSeq = 1;
-
-  List<MensajeChat> mensajesDe(int tallerId) =>
-      List.unmodifiable(_chats[tallerId] ?? const []);
-
-  MensajeChat? ultimoMensaje(int tallerId) {
-    final l = _chats[tallerId];
-    return (l == null || l.isEmpty) ? null : l.last;
-  }
-
-  List<Taller> chatsDe(Rol rol) => switch (rol) {
-    Rol.alumno =>
-      misInscripciones.map((i) => tallerPorId(i.taller.id)).toList(),
-    Rol.instructor => misGrupos,
-    Rol.admin => _talleres.where((t) => t.activo).toList(),
-  };
-
-  String nombreChat(Rol rol) => switch (rol) {
-    Rol.alumno => alumno.nombreCompleto,
-    Rol.instructor => instructor.nombreCompleto,
-    Rol.admin => 'Coordinación',
-  };
-
-  void enviarMensaje({
-    required int tallerId,
-    required Rol rol,
-    required String texto,
-  }) {
-    final t = texto.trim();
-    if (t.isEmpty) return;
-    final mensaje = MensajeChat(
-      id: _msgSeq++,
-      tallerId: tallerId,
-      rol: rol,
-      autor: nombreChat(rol),
-      texto: t,
-      fecha: DateTime.now(),
-    );
-    _chats.putIfAbsent(tallerId, () => []).add(mensaje);
-    _guardar((r) async {
-      await r.guardarMensaje(mensaje);
-      await r.guardarContador('mensaje', _msgSeq);
-    });
-    notifyListeners();
-  }
-
-  // ================= ENCUESTAS =================
-  final List<RespuestaEncuesta> _encuestas = [];
-  int _encSeq = 1;
-
-  List<RespuestaEncuesta> get encuestas => List.unmodifiable(_encuestas);
-
-  bool encuestaContestada(int tallerId) => _encuestas.any(
-    (e) => e.tallerId == tallerId && e.numeroControl == alumno.numeroControl,
-  );
-
-  void enviarEncuesta({
-    required int tallerId,
-    required int club,
-    required int instructorCalif,
-    String comentario = '',
-  }) {
-    if (encuestaContestada(tallerId)) return;
-    final encuesta = RespuestaEncuesta(
-      id: _encSeq++,
-      tallerId: tallerId,
-      numeroControl: alumno.numeroControl,
-      califClub: club,
-      califInstructor: instructorCalif,
-      comentario: comentario.trim(),
-      fecha: DateTime.now(),
-    );
-    _encuestas.insert(0, encuesta);
-    _guardar((r) async {
-      await r.guardarEncuesta(encuesta);
-      await r.guardarContador('encuesta', _encSeq);
-    });
-    notifyListeners();
-  }
-
-  int respuestasDeClub(int tallerId) =>
-      _encuestas.where((e) => e.tallerId == tallerId).length;
-
-  double? promedioClub(int tallerId) {
-    final l = _encuestas.where((e) => e.tallerId == tallerId).toList();
-    if (l.isEmpty) return null;
-    return l.fold<int>(0, (a, e) => a + e.califClub) / l.length;
-  }
-
-  List<RespuestaEncuesta> _encuestasDeInstructor(int instructorId) {
-    final ids = _talleres
-        .where((t) => t.instructor.id == instructorId)
-        .map((t) => t.id)
-        .toSet();
-    return _encuestas.where((e) => ids.contains(e.tallerId)).toList();
-  }
-
-  int respuestasDeInstructor(int instructorId) =>
-      _encuestasDeInstructor(instructorId).length;
-
-  double? promedioInstructor(int instructorId) {
-    final l = _encuestasDeInstructor(instructorId);
-    if (l.isEmpty) return null;
-    return l.fold<int>(0, (a, e) => a + e.califInstructor) / l.length;
-  }
-
-  double? get promedioGeneralClubes {
-    if (_encuestas.isEmpty) return null;
-    return _encuestas.fold<int>(0, (a, e) => a + e.califClub) /
-        _encuestas.length;
-  }
-
-  // ================= SOLICITUDES AL ADMIN =================
-  final List<SolicitudAdmin> _solicitudes = [];
-  int _solSeq = 1;
-
-  List<SolicitudAdmin> get solicitudes => List.unmodifiable(_solicitudes);
-
-  List<SolicitudAdmin> get solicitudesDelInstructor =>
-      _solicitudes.where((s) => s.instructorId == instructor.id).toList();
-
-  int get solicitudesPendientes =>
-      _solicitudes.where((s) => s.estado == EstadoSolicitud.pendiente).length;
-
-  void atenderSolicitud(int id) {
-    final i = _solicitudes.indexWhere((s) => s.id == id);
-    if (i < 0) return;
-    _solicitudes[i] = _solicitudes[i].copyWith(
-      estado: EstadoSolicitud.atendida,
-    );
-    _guardar((r) => r.guardarSolicitud(_solicitudes[i]));
-    notifyListeners();
-  }
-
-  int listasRegistradasDe(int instructorId) {
-    final ids = _talleres
-        .where((t) => t.instructor.id == instructorId)
-        .map((t) => t.id)
-        .toSet();
-    return _asistencias.keys
-        .where((k) => ids.contains(int.tryParse(k.split('|').first)))
-        .length;
-  }
-
-  // ================= AVISOS: leídos / archivados =================
-  final Set<int> _avisosLeidos = {};
-  final Set<int> _avisosArchivados = {};
-  int _avisoSeq = 1;
-
-  bool avisoLeido(int id) => _avisosLeidos.contains(id);
-  List<Aviso> get avisosVisibles =>
-      _avisos.where((a) => !_avisosArchivados.contains(a.id)).toList();
-  List<Aviso> get avisosArchivados =>
-      _avisos.where((a) => _avisosArchivados.contains(a.id)).toList();
-  int get avisosSinLeer =>
-      avisosVisibles.where((a) => !_avisosLeidos.contains(a.id)).length;
-
-  void marcarAviso(int id, {bool leido = true}) {
-    leido ? _avisosLeidos.add(id) : _avisosLeidos.remove(id);
-    _guardar((r) => r.estadoAviso(id, leido: leido));
-    notifyListeners();
-  }
-
-  void marcarTodosLeidos() {
-    final ids = avisosVisibles
-        .where((a) => !_avisosLeidos.contains(a.id))
-        .map((a) => a.id)
-        .toList();
-    _avisosLeidos.addAll(ids);
-    _guardar((r) async {
-      for (final id in ids) {
-        await r.estadoAviso(id, leido: true);
-      }
-    });
-    notifyListeners();
-  }
-
-  void archivarAviso(int id, {bool archivar = true}) {
-    archivar ? _avisosArchivados.add(id) : _avisosArchivados.remove(id);
-    _guardar((r) => r.estadoAviso(id, archivado: archivar));
-    notifyListeners();
-  }
-
-  Aviso? eliminarAviso(int id) {
-    final i = _avisos.indexWhere((a) => a.id == id);
-    if (i < 0) return null;
-    final a = _avisos.removeAt(i);
-    _guardar((r) => r.eliminarAviso(id));
-    notifyListeners();
-    return a;
-  }
-
-  void restaurarAviso(Aviso a) {
-    _avisos.add(a);
-    _avisos.sort((x, y) => y.fecha.compareTo(x.fecha));
-    _guardar(
-      (r) => r.guardarAviso(
-        a,
-        leido: _avisosLeidos.contains(a.id),
-        archivado: _avisosArchivados.contains(a.id),
-      ),
-    );
-    notifyListeners();
-  }
-
-  // ================= CHATS: anclar y fondo =================
-  final Set<int> _chatsAnclados = {};
-  final Map<int, int> _fondosChat = {};
-
-  bool chatAnclado(int id) => _chatsAnclados.contains(id);
-  int fondoChat(int id) => _fondosChat[id] ?? 0;
-
-  /// false si ya hay 3 anclados
-  bool toggleAnclarChat(int id) {
-    if (_chatsAnclados.contains(id)) {
-      _chatsAnclados.remove(id);
-    } else {
-      if (_chatsAnclados.length >= 3) return false;
-      _chatsAnclados.add(id);
-    }
-    _guardar(
-      (r) => r.guardarEstadoChat(id, anclado: _chatsAnclados.contains(id)),
-    );
-    notifyListeners();
-    return true;
-  }
-
-  void ponerFondoChat(int id, int fondo) {
-    _fondosChat[id] = fondo;
-    _guardar((r) => r.guardarEstadoChat(id, fondo: fondo));
-    notifyListeners();
-  }
-
-  List<Taller> chatsOrdenados(Rol rol) {
-    final l = chatsDe(rol);
-    int t(Taller x) => ultimoMensaje(x.id)?.fecha.millisecondsSinceEpoch ?? 0;
-    l.sort((a, b) {
-      final pa = chatAnclado(a.id), pb = chatAnclado(b.id);
-      if (pa != pb) return pa ? -1 : 1;
-      return t(b).compareTo(t(a));
-    });
-    return l;
-  }
-
-  // ================= INSTRUCTORES: duplicados =================
+  // ================= INSTRUCTORES: cuentas y asignaciones =================
   bool existeCorreoInstructor(String c) =>
       _instructores.any((i) => i.correo == c.trim().toLowerCase());
 
@@ -899,119 +1060,14 @@ class EstadoApp extends ChangeNotifier {
     (i) => i.nombreCompleto.toLowerCase() == '$n $p $m'.trim().toLowerCase(),
   );
 
-  // ================= SOLICITUDES (lógica mejorada) =================
-  final Map<int, int> _bajas = {};
-  int bajasDe(int tallerId) => _bajas[tallerId] ?? 0;
-
-  bool haySolicitudPendiente(int tallerId, TipoSolicitud tipo) =>
-      _solicitudes.any(
-        (s) =>
-            s.tallerId == tallerId &&
-            s.tipo == tipo &&
-            s.estado == EstadoSolicitud.pendiente,
-      );
-
-  /// false si ya existe una igual pendiente
-  bool enviarSolicitud({
-    required Taller taller,
-    required TipoSolicitud tipo,
-    String mensaje = '',
-  }) {
-    if (haySolicitudPendiente(taller.id, tipo)) return false;
-    final solicitud = SolicitudAdmin(
-      id: _solSeq++,
-      tallerId: taller.id,
-      instructorId: instructor.id,
-      instructorNombre: instructor.nombreCompleto,
-      tipo: tipo,
-      mensaje: mensaje.trim(),
-      fecha: DateTime.now(),
-    );
-    _solicitudes.insert(0, solicitud);
-    _guardar((r) async {
-      await r.guardarSolicitud(solicitud);
-      await r.guardarContador('solicitud', _solSeq);
-    });
-    notifyListeners();
-    return true;
-  }
-
-  void cancelarSolicitud(int id) {
-    _solicitudes.removeWhere(
-      (s) => s.id == id && s.estado == EstadoSolicitud.pendiente,
-    );
-    _guardar((r) => r.eliminarSolicitud(id));
-    notifyListeners();
-  }
-
-  void responderSolicitud(
-    int id, {
-    required bool aprobar,
-    String respuesta = '',
-    int cupoExtra = 0,
-  }) {
-    final i = _solicitudes.indexWhere((s) => s.id == id);
-    if (i < 0) return;
-    final sol = _solicitudes[i];
-    if (aprobar && cupoExtra > 0) {
-      final t = tallerPorId(sol.tallerId);
-      guardarTaller(t.copyWith(cupoMaximo: t.cupoMaximo + cupoExtra));
-    }
-    _solicitudes[i] = sol.copyWith(
-      estado: aprobar ? EstadoSolicitud.atendida : EstadoSolicitud.rechazada,
-      respuesta: respuesta.trim(),
-      cupoExtra: aprobar ? cupoExtra : 0,
-    );
-    _guardar((r) => r.guardarSolicitud(_solicitudes[i]));
-    notifyListeners();
-  }
-
-  // ================= CUENTAS GUARDADAS =================
-
-  /// Pone como "persona actual" a la cuenta con la que se entró.
-  /// Con null deja los perfiles vacíos (explorar sin cuenta).
-  void usarCuenta(CuentaGuardada? c) {
-    if (c != null && c.rol == Rol.alumno) {
-      alumno = c.aAlumno();
-    } else {
-      alumno = alumnoVacio;
-    }
-
-    if (c != null && c.rol == Rol.instructor) {
-      instructor = _instructores.firstWhere(
-        (i) => i.id == c.id,
-        orElse: () => c.aInstructor(),
-      );
-    } else {
-      instructor = instructorVacio;
-    }
-
-    if (c != null && c.rol == Rol.admin) {
-      admin = Administrador(
-        id: c.id,
-        nombre: c.nombre,
-        apellidoPaterno: c.apellidoPaterno,
-        apellidoMaterno: c.apellidoMaterno,
-        correo: c.correo,
-        cargo: 'Coordinador',
-      );
-    } else {
-      admin = adminVacio;
-    }
-    notifyListeners();
-  }
-
-  // al abrir la app los instructores ya vienen de la base de datos
-  // (ver cargar()), incluyendo los que el admin dio de alta.
-
-  // ================= ADMIN: instructores con cuenta =================
   bool tieneCuentaInstructor(int id) => _almacen?.porId(id) != null;
 
   Instructor? instructorPorId(int id) {
     for (final i in _instructores) {
       if (i.id == id) return i;
     }
-    return null;
+    final c = _almacen?.porId(id);
+    return c?.rol == Rol.instructor ? c!.aInstructor() : null;
   }
 
   List<Taller> talleresDeInstructor(int id) =>
@@ -1020,12 +1076,27 @@ class EstadoApp extends ChangeNotifier {
   // los talleres guardan una copia del instructor: hay que actualizarla
   void _reemplazarInstructor(Instructor n) {
     final i = _instructores.indexWhere((x) => x.id == n.id);
-    if (i >= 0) _instructores[i] = n;
+    if (i >= 0) {
+      _instructores[i] = n;
+    } else {
+      _instructores.add(n);
+    }
     for (final t in List.of(_talleres)) {
       if (t.instructor.id == n.id) guardarTaller(t.copyWith(instructor: n));
     }
     if (instructor.id == n.id) instructor = n;
-    _guardar((r) => r.guardarInstructor(n));
+    _guardar(
+      (db) => db.from('instructores').upsert({
+        'id': n.id,
+        'nombre': n.nombre,
+        'apellido_paterno': n.apellidoPaterno,
+        'apellido_materno': n.apellidoMaterno,
+        'correo': n.correo,
+        'telefono': n.telefono ?? '',
+        'especialidad': n.especialidad,
+        'activo': n.activo,
+      }),
+    );
     notifyListeners();
   }
 
@@ -1072,6 +1143,18 @@ class EstadoApp extends ChangeNotifier {
     }
     final inst = c.aInstructor();
     _instructores.add(inst);
+    _guardar(
+      (db) => db.from('instructores').insert({
+        'id': inst.id,
+        'nombre': inst.nombre,
+        'apellido_paterno': inst.apellidoPaterno,
+        'apellido_materno': inst.apellidoMaterno,
+        'correo': inst.correo,
+        'telefono': inst.telefono ?? '',
+        'especialidad': inst.especialidad,
+        'activo': true,
+      }),
+    );
     notifyListeners();
     return (instructor: inst, error: null);
   }
@@ -1166,5 +1249,382 @@ class EstadoApp extends ChangeNotifier {
       if (!await a.guardar()) return 'Error: no se pudo guardar la asignación';
     }
     return null;
+  }
+
+  void registrarReporte(String tipo, String formato) {
+    final fecha = DateTime.now();
+    _reportes.insert(0, (tipo: tipo, formato: formato, fecha: fecha));
+    _guardar((db) async {
+      await db.from('reportes').insert({
+        'tipo': tipo,
+        'formato': formato,
+        'fecha': fecha.toIso8601String(),
+      });
+    });
+    notifyListeners();
+  }
+
+  // ================= CHATS GRUPALES =================
+  final Map<int, List<MensajeChat>> _chats = {};
+  int _msgSeq = 1;
+
+  List<MensajeChat> mensajesDe(int tallerId) =>
+      List.unmodifiable(_chats[tallerId] ?? const []);
+
+  MensajeChat? ultimoMensaje(int tallerId) {
+    final l = _chats[tallerId];
+    return (l == null || l.isEmpty) ? null : l.last;
+  }
+
+  List<Taller> chatsDe(Rol rol) => switch (rol) {
+    Rol.alumno =>
+      misInscripciones.map((i) => tallerPorId(i.taller.id)).toList(),
+    Rol.instructor => misGrupos,
+    Rol.admin => _talleres.where((t) => t.activo).toList(),
+  };
+
+  String nombreChat(Rol rol) => switch (rol) {
+    Rol.alumno => alumno.nombreCompleto,
+    Rol.instructor => instructor.nombreCompleto,
+    Rol.admin => 'Coordinación',
+  };
+
+  // ================= CHATS: anclar y fondo =================
+  final Set<int> _chatsAnclados = {};
+  final Map<int, int> _fondosChat = {};
+
+  bool chatAnclado(int id) => _chatsAnclados.contains(id);
+  int fondoChat(int id) => _fondosChat[id] ?? 0;
+
+  /// false si ya hay 3 anclados
+  bool toggleAnclarChat(int id) {
+    if (_chatsAnclados.contains(id)) {
+      _chatsAnclados.remove(id);
+    } else {
+      if (_chatsAnclados.length >= 3) return false;
+      _chatsAnclados.add(id);
+    }
+    _guardar(
+      (db) => db.from('chats_estado').upsert({
+        'taller_id': id,
+        'anclado': _chatsAnclados.contains(id),
+        'fondo': _fondosChat[id] ?? 0,
+      }, onConflict: 'taller_id'),
+    );
+    notifyListeners();
+    return true;
+  }
+
+  void ponerFondoChat(int id, int fondo) {
+    _fondosChat[id] = fondo;
+    _guardar(
+      (db) => db.from('chats_estado').upsert({
+        'taller_id': id,
+        'anclado': _chatsAnclados.contains(id),
+        'fondo': fondo,
+      }, onConflict: 'taller_id'),
+    );
+    notifyListeners();
+  }
+
+  List<Taller> chatsOrdenados(Rol rol) {
+    final l = chatsDe(rol);
+    int t(Taller x) => ultimoMensaje(x.id)?.fecha.millisecondsSinceEpoch ?? 0;
+    l.sort((a, b) {
+      final pa = chatAnclado(a.id), pb = chatAnclado(b.id);
+      if (pa != pb) return pa ? -1 : 1;
+      return t(b).compareTo(t(a));
+    });
+    return l;
+  }
+
+  void enviarMensaje({
+    required int tallerId,
+    required Rol rol,
+    required String texto,
+  }) {
+    final t = texto.trim();
+    if (t.isEmpty) return;
+    final ahora = DateTime.now();
+    final autor = nombreChat(rol);
+    final mensaje = MensajeChat(
+      id: _msgSeq++,
+      tallerId: tallerId,
+      rol: rol,
+      autor: autor,
+      texto: t,
+      fecha: ahora,
+    );
+    _chats.putIfAbsent(tallerId, () => []).add(mensaje);
+    _guardar((db) async {
+      await db.from('mensajes').insert({
+        'taller_id': tallerId,
+        'rol': rol.name,
+        'autor': autor,
+        'texto': t,
+        'fecha': ahora.toIso8601String(),
+      });
+    });
+    notifyListeners();
+  }
+
+  // ================= ENCUESTAS =================
+  final List<RespuestaEncuesta> _encuestas = [];
+  int _encSeq = 1;
+
+  List<RespuestaEncuesta> get encuestas => List.unmodifiable(_encuestas);
+
+  bool encuestaContestada(int tallerId) => _encuestas.any(
+    (e) => e.tallerId == tallerId && e.numeroControl == alumno.numeroControl,
+  );
+
+  void enviarEncuesta({
+    required int tallerId,
+    required int club,
+    required int instructorCalif,
+    String comentario = '',
+  }) {
+    if (encuestaContestada(tallerId)) return;
+    final ahora = DateTime.now();
+    final encuesta = RespuestaEncuesta(
+      id: _encSeq++,
+      tallerId: tallerId,
+      numeroControl: alumno.numeroControl,
+      califClub: club,
+      califInstructor: instructorCalif,
+      comentario: comentario.trim(),
+      fecha: ahora,
+    );
+    _encuestas.insert(0, encuesta);
+    _guardar((db) async {
+      await db.from('encuestas').insert({
+        'taller_id': tallerId,
+        'numero_control': alumno.numeroControl,
+        'calif_club': club,
+        'calif_instructor': instructorCalif,
+        'comentario': comentario.trim(),
+        'fecha': ahora.toIso8601String(),
+      });
+    });
+    notifyListeners();
+  }
+
+  int respuestasDeClub(int tallerId) =>
+      _encuestas.where((e) => e.tallerId == tallerId).length;
+
+  double? promedioClub(int tallerId) {
+    final l = _encuestas.where((e) => e.tallerId == tallerId).toList();
+    if (l.isEmpty) return null;
+    return l.fold<int>(0, (a, e) => a + e.califClub) / l.length;
+  }
+
+  List<RespuestaEncuesta> _encuestasDeInstructor(int instructorId) {
+    final ids = _talleres
+        .where((t) => t.instructor.id == instructorId)
+        .map((t) => t.id)
+        .toSet();
+    return _encuestas.where((e) => ids.contains(e.tallerId)).toList();
+  }
+
+  int respuestasDeInstructor(int instructorId) =>
+      _encuestasDeInstructor(instructorId).length;
+
+  double? promedioInstructor(int instructorId) {
+    final l = _encuestasDeInstructor(instructorId);
+    if (l.isEmpty) return null;
+    return l.fold<int>(0, (a, e) => a + e.califInstructor) / l.length;
+  }
+
+  double? get promedioGeneralClubes {
+    if (_encuestas.isEmpty) return null;
+    return _encuestas.fold<int>(0, (a, e) => a + e.califClub) /
+        _encuestas.length;
+  }
+
+  // ================= SOLICITUDES AL ADMIN =================
+  final List<SolicitudAdmin> _solicitudes = [];
+  int _solSeq = 1;
+
+  List<SolicitudAdmin> get solicitudes => List.unmodifiable(_solicitudes);
+
+  List<SolicitudAdmin> get solicitudesDelInstructor =>
+      _solicitudes.where((s) => s.instructorId == instructor.id).toList();
+
+  int get solicitudesPendientes =>
+      _solicitudes.where((s) => s.estado == EstadoSolicitud.pendiente).length;
+
+  void atenderSolicitud(int id) {
+    final i = _solicitudes.indexWhere((s) => s.id == id);
+    if (i < 0) return;
+    _solicitudes[i] = _solicitudes[i].copyWith(
+      estado: EstadoSolicitud.atendida,
+    );
+    _guardar((db) async {
+      await db
+          .from('solicitudes')
+          .update({'estado': EstadoSolicitud.atendida.name})
+          .eq('id', id);
+    });
+    notifyListeners();
+  }
+
+  int bajasDe(int tallerId) => _bajas[tallerId] ?? 0;
+
+  bool haySolicitudPendiente(int tallerId, TipoSolicitud tipo) =>
+      _solicitudes.any(
+        (s) =>
+            s.tallerId == tallerId &&
+            s.tipo == tipo &&
+            s.estado == EstadoSolicitud.pendiente,
+      );
+
+  /// false si ya existe una igual pendiente
+  bool enviarSolicitud({
+    required Taller taller,
+    required TipoSolicitud tipo,
+    String mensaje = '',
+  }) {
+    if (haySolicitudPendiente(taller.id, tipo)) return false;
+    final solicitud = SolicitudAdmin(
+      id: _solSeq++,
+      tallerId: taller.id,
+      instructorId: instructor.id,
+      instructorNombre: instructor.nombreCompleto,
+      tipo: tipo,
+      mensaje: mensaje.trim(),
+      fecha: DateTime.now(),
+    );
+    _solicitudes.insert(0, solicitud);
+    _guardar(
+      (db) => db.from('solicitudes').insert({
+        'id': solicitud.id,
+        'taller_id': solicitud.tallerId,
+        'instructor_id': solicitud.instructorId,
+        'instructor_nombre': solicitud.instructorNombre,
+        'tipo': solicitud.tipo.name,
+        'mensaje': solicitud.mensaje,
+        'fecha': solicitud.fecha.toIso8601String(),
+        'estado': solicitud.estado.name,
+        'respuesta': solicitud.respuesta,
+        'cupo_extra': solicitud.cupoExtra,
+      }),
+    );
+    notifyListeners();
+    return true;
+  }
+
+  void cancelarSolicitud(int id) {
+    _solicitudes.removeWhere(
+      (s) => s.id == id && s.estado == EstadoSolicitud.pendiente,
+    );
+    _guardar((db) => db.from('solicitudes').delete().eq('id', id));
+    notifyListeners();
+  }
+
+  void responderSolicitud(
+    int id, {
+    required bool aprobar,
+    String respuesta = '',
+    int cupoExtra = 0,
+  }) {
+    final i = _solicitudes.indexWhere((s) => s.id == id);
+    if (i < 0) return;
+    final sol = _solicitudes[i];
+    if (aprobar && cupoExtra > 0) {
+      final t = tallerPorId(sol.tallerId);
+      guardarTaller(t.copyWith(cupoMaximo: t.cupoMaximo + cupoExtra));
+    }
+    _solicitudes[i] = sol.copyWith(
+      estado: aprobar ? EstadoSolicitud.atendida : EstadoSolicitud.rechazada,
+      respuesta: respuesta.trim(),
+      cupoExtra: aprobar ? cupoExtra : 0,
+    );
+    _guardar(
+      (db) => db.from('solicitudes').update({
+        'estado': _solicitudes[i].estado.name,
+        'respuesta': _solicitudes[i].respuesta,
+        'cupo_extra': _solicitudes[i].cupoExtra,
+      }).eq('id', id),
+    );
+    notifyListeners();
+  }
+
+  int listasRegistradasDe(int instructorId) {
+    final ids = _talleres
+        .where((t) => t.instructor.id == instructorId)
+        .map((t) => t.id)
+        .toSet();
+    return _asistencias.keys
+        .where((k) => ids.contains(int.tryParse(k.split('|').first)))
+        .length;
+  }
+
+  // ================= AVISOS: leídos / archivados =================
+  final Set<int> _avisosLeidos = {};
+  final Set<int> _avisosArchivados = {};
+  int _avisoSeq = 1;
+
+  bool avisoLeido(int id) => _avisosLeidos.contains(id);
+  List<Aviso> get avisosVisibles =>
+      _avisos.where((a) => !_avisosArchivados.contains(a.id)).toList();
+  List<Aviso> get avisosArchivados =>
+      _avisos.where((a) => _avisosArchivados.contains(a.id)).toList();
+
+  int get avisosSinLeer =>
+      avisosVisibles.where((a) => !_avisosLeidos.contains(a.id)).length;
+
+  void marcarAviso(int id, {bool leido = true}) {
+    leido ? _avisosLeidos.add(id) : _avisosLeidos.remove(id);
+    _guardar((db) => db.from('avisos').update({'leido': leido}).eq('id', id));
+    notifyListeners();
+  }
+
+  void marcarTodosLeidos() {
+    final ids = avisosVisibles
+        .where((a) => !_avisosLeidos.contains(a.id))
+        .map((a) => a.id)
+        .toList();
+    _avisosLeidos.addAll(ids);
+    _guardar((db) async {
+      for (final id in ids) {
+        await db.from('avisos').update({'leido': true}).eq('id', id);
+      }
+    });
+    notifyListeners();
+  }
+
+  void archivarAviso(int id, {bool archivar = true}) {
+    archivar ? _avisosArchivados.add(id) : _avisosArchivados.remove(id);
+    _guardar(
+      (db) => db.from('avisos').update({'archivado': archivar}).eq('id', id),
+    );
+    notifyListeners();
+  }
+
+  Aviso? eliminarAviso(int id) {
+    final i = _avisos.indexWhere((a) => a.id == id);
+    if (i < 0) return null;
+    final a = _avisos.removeAt(i);
+    _guardar((db) => db.from('avisos').delete().eq('id', id));
+    notifyListeners();
+    return a;
+  }
+
+  void restaurarAviso(Aviso a) {
+    _avisos.add(a);
+    _avisos.sort((x, y) => y.fecha.compareTo(x.fecha));
+    _guardar(
+      (db) => db.from('avisos').upsert({
+        'id': a.id,
+        'taller_id': a.tallerId,
+        'tipo': a.tipo.name,
+        'titulo': a.titulo,
+        'mensaje': a.mensaje,
+        'fecha': a.fecha.toIso8601String(),
+        'leido': _avisosLeidos.contains(a.id),
+        'archivado': _avisosArchivados.contains(a.id),
+      }),
+    );
+    notifyListeners();
   }
 }

@@ -52,3 +52,10 @@ app.*.map.json
 *.keystore
 keystore.properties
 .env
+
+# Bases de datos locales y datos de prueba (no subir)
+activa_datos_prueba.sqlite
+*.db
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm

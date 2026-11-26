@@ -1,21 +1,10 @@
-// ===================================================================
-// almacen_cuentas.dart
-// Guarda las cuentas (alumnos registrados e instructores creados por el
-// admin) en la base de datos SQLite de ACTIVA. Las contraseñas NO se
-// guardan en texto: solo la sal y el hash (SHA-256).
-//
-// Este archivo conserva la misma API que usaban las pantallas, así que
-// el login y el registro siguen funcionando sin cambios.
-// ===================================================================
-
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../modelos/enums.dart';
 import '../modelos/usuario.dart';
-import 'bd/base_datos.dart';
-import 'bd/repositorio_activa.dart';
 import 'bd/seguridad.dart';
 
 class CuentaGuardada {
@@ -49,7 +38,7 @@ class CuentaGuardada {
   String telefono;
   // instructor
   String especialidad;
-  List<int> tallerIds; // talleres que el admin le asignó
+  List<int> tallerIds;
   // alumno
   String numeroControl;
   String grupo;
@@ -83,7 +72,6 @@ class CuentaGuardada {
     activo: activo,
   );
 
-  /// "profe.lopez@utng.edu.mx" -> "profe_lopez" (válido para validarUsuario)
   static String usuarioDesdeCorreo(String correo) {
     var u = correo
         .split('@')
@@ -96,55 +84,118 @@ class CuentaGuardada {
     if (u.length < 4) u = u.padRight(4, '0');
     return u;
   }
+
+  static Rol _rolDesdeTexto(Object? valor) {
+    final texto = (valor ?? '').toString().toLowerCase();
+    for (final r in Rol.values) {
+      if (r.name == texto) return r;
+    }
+    return Rol.alumno;
+  }
+
+  static bool _aBool(Object? valor, {bool porDefecto = false}) {
+    if (valor is bool) return valor;
+    if (valor is num) return valor != 0;
+    if (valor is String) {
+      final v = valor.toLowerCase();
+      if (v == 'true' || v == '1') return true;
+      if (v == 'false' || v == '0') return false;
+    }
+    return porDefecto;
+  }
+
+  factory CuentaGuardada.desdeMapa(Map<String, dynamic> m) {
+    return CuentaGuardada(
+      id: (m['id'] as num?)?.toInt() ?? 0,
+      rol: _rolDesdeTexto(m['rol']),
+      usuario: (m['usuario'] ?? '').toString(),
+      correo: (m['correo'] ?? '').toString(),
+      nombre: (m['nombre'] ?? '').toString(),
+      apellidoPaterno: (m['apellido_paterno'] ?? '').toString(),
+      apellidoMaterno: (m['apellido_materno'] ?? '').toString(),
+      telefono: (m['telefono'] ?? '').toString(),
+      especialidad: (m['especialidad'] ?? '').toString(),
+      numeroControl: (m['numero_control'] ?? '').toString(),
+      grupo: (m['grupo'] ?? '').toString(),
+      carrera: (m['carrera'] ?? '').toString(),
+      activo: _aBool(m['activo'], porDefecto: true),
+      debeCambiarContrasena: _aBool(m['debe_cambiar_contrasena']),
+      sal: (m['sal'] ?? '').toString(),
+      hash: (m['hash'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> aMapaSupabase({bool incluirId = true}) {
+    final mapa = <String, dynamic>{
+      'rol': rol.name,
+      'usuario': usuario.trim().toLowerCase(),
+      'correo': correo.trim().toLowerCase(),
+      'nombre': nombre.trim(),
+      'apellido_paterno': apellidoPaterno.trim(),
+      'apellido_materno': apellidoMaterno.trim(),
+      'telefono': telefono.trim(),
+      'especialidad': especialidad.trim(),
+      'numero_control': numeroControl.trim(),
+      'grupo': grupo.trim(),
+      'carrera': carrera.trim(),
+      'activo': activo,
+      'debe_cambiar_contrasena': debeCambiarContrasena,
+      'sal': sal,
+      'hash': hash,
+    };
+    if (incluirId && id > 0) {
+      mapa['id'] = id;
+    }
+    return mapa;
+  }
 }
 
 class AlmacenCuentas {
-  AlmacenCuentas._(this._cuentas, this._siguienteId, this._repo);
+  AlmacenCuentas._(this._cuentas, this._siguienteId, this._db);
 
   final List<CuentaGuardada> _cuentas;
-  final RepositorioActiva _repo;
+  final SupabaseClient _db;
   int _siguienteId;
-  Future<bool> _cola = Future.value(true); // escrituras una tras otra
+  Future<bool> _cola = Future.value(true);
 
-  // ------------------------------------------------ carga / guardado
   static Future<AlmacenCuentas> cargar() async {
+    final db = Supabase.instance.client;
     try {
-      final db = await BaseDatos.instancia.abrir();
-      final repo = RepositorioActiva(db);
-      final lista = await repo.cargarCuentas();
+      final filas = await db
+          .from('usuarios')
+          .select()
+          .order('id', ascending: true)
+          .timeout(const Duration(seconds: 8));
+      final lista = List<Map<String, dynamic>>.from(filas).map(CuentaGuardada.desdeMapa).toList();
       final maxId = lista.fold<int>(0, (a, c) => c.id > a ? c.id : a);
-      final guardado = await repo.siguienteIdUsuario();
-      return AlmacenCuentas._(
-        lista,
-        [guardado, maxId + 1, 1000].reduce((a, b) => a > b ? a : b),
-        repo,
-      );
+      return AlmacenCuentas._(lista, maxId + 1, db);
     } catch (e) {
-      debugPrint('No se pudieron leer las cuentas guardadas: $e');
-      return AlmacenCuentas._(
-        [],
-        1000,
-        RepositorioActiva(await BaseDatos.instancia.abrir()),
-      );
+      debugPrint('No se pudieron leer las cuentas desde Supabase: $e');
+      return AlmacenCuentas._([], 1, db);
     }
   }
 
-  /// Escribe todas las cuentas (y sus perfiles) en SQLite.
-  /// Devuelve false si no se pudo guardar.
+  /// Sincroniza la lista en memoria hacia Supabase.
   Future<bool> guardar() {
     _cola = _cola.then((_) async {
       try {
-        await _repo.guardarCuentas(_cuentas, siguienteId: _siguienteId);
+        for (final c in _cuentas) {
+          await _db
+              .from('usuarios')
+              .upsert(
+                c.aMapaSupabase(incluirId: c.id > 0),
+                onConflict: 'usuario',
+              );
+        }
         return true;
       } catch (e) {
-        debugPrint('No se pudieron guardar las cuentas: $e');
+        debugPrint('No se pudieron guardar las cuentas en Supabase: $e');
         return false;
       }
     });
     return _cola;
   }
 
-  // ------------------------------------------------ consultas
   List<CuentaGuardada> get cuentas => List.unmodifiable(_cuentas);
   List<CuentaGuardada> get instructores =>
       _cuentas.where((c) => c.rol == Rol.instructor).toList();
@@ -160,7 +211,6 @@ class AlmacenCuentas {
     return null;
   }
 
-  /// Busca por usuario, correo o número de control (solo alumnos).
   CuentaGuardada? buscarAcceso(String texto) {
     final u = texto.trim().toLowerCase();
     if (u.isEmpty) return null;
@@ -191,7 +241,6 @@ class AlmacenCuentas {
     (c) => c.id != excepto && c.usuario == usuario.trim().toLowerCase(),
   );
 
-  /// Si "base" ya existe, le agrega un número (profe, profe2, profe3...)
   String usuarioLibre(String base) {
     var u = base;
     var n = 2;
@@ -206,18 +255,25 @@ class AlmacenCuentas {
     return u;
   }
 
-  // ------------------------------------------------ altas
   Future<bool> agregar(CuentaGuardada c) async {
-    _cuentas.add(c);
-    final ok = await guardar();
-    if (!ok) _cuentas.remove(c);
-    return ok;
+    try {
+      final insertada = await _db
+          .from('usuarios')
+          .insert(c.aMapaSupabase(incluirId: false))
+          .select()
+          .single();
+      final cuentaReal = CuentaGuardada.desdeMapa(insertada);
+      _cuentas.add(cuentaReal);
+      if (cuentaReal.id >= _siguienteId) {
+        _siguienteId = cuentaReal.id + 1;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error al registrar cuenta en Supabase: $e');
+      return false;
+    }
   }
 
-  // ------------------------------------------------ contraseñas
-
-  /// Guarda la contraseña (ya con hash). [temporal] = true obliga a
-  /// cambiarla en el siguiente inicio de sesión.
   void ponerContrasena(
     CuentaGuardada c,
     String contrasena, {
@@ -231,8 +287,6 @@ class AlmacenCuentas {
   bool verificar(CuentaGuardada c, String contrasena) =>
       contrasenaCorrecta(c.sal, c.hash, contrasena);
 
-  /// Contraseña temporal de 10 caracteres que cumple las reglas de la app
-  /// (mayúscula, número y carácter especial). Sin letras ambiguas (O, 0, l, 1).
   static String generarTemporal() {
     const mayus = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
     const minus = 'abcdefghijkmnpqrstuvwxyz';
