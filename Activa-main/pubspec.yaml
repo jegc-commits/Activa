@@ -37,9 +37,9 @@ dependencies:
   path: ^1.9.1
 
   # login con Google (ver GUIA_LOGIN_GOOGLE.md para configurarlo)
-  firebase_core: any
-  firebase_auth: any
-  google_sign_in: any
+  # firebase_core: any
+  # firebase_auth: any
+  # google_sign_in: any
 
   # envío real del código de recuperación por correo (ver GUIA_CORREO_RECUPERACION.md)
   http: ^1.2.2

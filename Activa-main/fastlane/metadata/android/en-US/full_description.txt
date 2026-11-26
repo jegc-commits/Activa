@@ -1,0 +1,12 @@
+ACTIVA (Activation of Clubs and Institutional Workshops for Academic Life) is a mobile app to browse activities, enroll, take attendance and manage clubs and workshops at UTNG.
+
+Features:
+- Browse workshops by category.
+- Enroll and withdraw from activities.
+- Attendance control and history.
+- Announcements, surveys, favorites and chat.
+- Instructor and administrator panels.
+- Local SQLite database, works offline.
+- No ads, no telemetry.
+
+FOSS build: no proprietary dependencies (no Google/Firebase).

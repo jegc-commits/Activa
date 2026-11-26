@@ -3,7 +3,18 @@
 **Activación de Clubes y Talleres Institucionales para la Vida Académica** (UTNG).
 App móvil hecha con Flutter para consultar actividades, inscribirse, pasar lista y administrar clubes y talleres.
 
-## Cómo correrla
+## Build FOSS (F-Droid)
+
+Esta rama/versión no incluye Firebase ni Google Sign-In (dependencias propietarias).
+El login es únicamente local.
+
+```
+flutter pub get
+flutter build apk --release
+```
+
+Metadatos de F-Droid en `fastlane/metadata/android/`. Licencia: MIT (`LICENSE`).
+Política de privacidad: `PRIVACY.md`.
 
 ```
 flutter pub get

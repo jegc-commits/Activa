@@ -1,0 +1,4 @@
+1.0.0:
+- Primera versión pública.
+- Base de datos local SQLite.
+- Roles: alumno, instructor y administrador.

@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Keystore y secretos (no subir)
+*.jks
+*.keystore
+keystore.properties
+.env

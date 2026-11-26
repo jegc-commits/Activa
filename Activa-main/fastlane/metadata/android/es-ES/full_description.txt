@@ -1,0 +1,12 @@
+ACTIVA (Activación de Clubes y Talleres Institucionales para la Vida Académica) es una aplicación móvil para consultar actividades, inscribirse, pasar lista y administrar clubes y talleres de la UTNG.
+
+Características:
+- Consulta de talleres por categoría.
+- Inscripción y baja de actividades.
+- Control de asistencia e historial.
+- Avisos, encuestas, favoritos y chat.
+- Panel de instructor y administrador.
+- Base de datos local (SQLite), funciona sin conexión.
+- Sin anuncios ni telemetría.
+
+Versión FOSS: sin dependencias propietarias (sin Google/Firebase).
