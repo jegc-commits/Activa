@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../modelos/enums.dart';
+import '../../../datos/bd/base_datos.dart';
 import '../../../nucleo/componentes/avatar_activa.dart';
 import '../../../nucleo/componentes/avisos.dart';
 import '../../../nucleo/componentes/dialogo_confirmar.dart';
@@ -310,6 +311,42 @@ class PantallaPerfilAdmin extends StatelessWidget {
     onTap: onTap,
   );
 
+  Future<void> _borrarTodo(BuildContext context) async {
+    final ok = await confirmarAccion(
+      context,
+      titulo: '¿Borrar todos los datos?',
+      mensaje:
+          'Esto elimina de verdad TODO: talleres, instructores, alumnos, '
+          'inscripciones, chats y avisos. No se puede deshacer. Úsalo solo '
+          'para dejar la app limpia antes de entregarla.',
+      textoConfirmar: 'Sí, borrar todo',
+      icono: Icons.delete_forever_rounded,
+      peligro: true,
+    );
+    if (!ok || !context.mounted) return;
+    await BaseDatos.instancia.reiniciar();
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Listo'),
+        content: const Text(
+          'Los datos se borraron. Ahora cierra la app por completo '
+          '(no solo minimizarla) y vuelve a abrirla para que arranque limpia.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final a = context.watch<EstadoApp>().admin;
@@ -396,6 +433,11 @@ class PantallaPerfilAdmin extends StatelessWidget {
                     Icons.settings,
                     'Configuración',
                     () => context.push('/perfil/configuracion'),
+                  ),
+                  _item(
+                    Icons.delete_forever_rounded,
+                    'Borrar todos los datos (dejar limpia)',
+                    () => _borrarTodo(context),
                   ),
                 ],
               ).toList(),

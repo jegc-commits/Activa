@@ -14,6 +14,7 @@ import '../../../nucleo/servicios/sonidos.dart';
 
 import '../../../nucleo/componentes/dialogo_confirmar.dart';
 import '../../../nucleo/servicios/documentos.dart';
+import '../../../nucleo/utilidades/textos.dart';
 
 class PantallaDetalleTaller extends StatelessWidget {
   const PantallaDetalleTaller({super.key, required this.tallerId});
@@ -176,14 +177,14 @@ class PantallaDetalleTaller extends StatelessWidget {
                   const SizedBox(height: 16),
                   _FilaInfo(
                     Icons.person,
-                    'Instructor',
+                    context.tr('detalle.instructor'),
                     t.instructor.nombreCompleto,
                   ),
-                  _FilaInfo(Icons.access_time, 'Horario', t.horarioTexto),
-                  _FilaInfo(Icons.location_on, 'Lugar', t.lugar),
+                  _FilaInfo(Icons.access_time, context.tr('detalle.horario'), t.horarioTexto),
+                  _FilaInfo(Icons.location_on, context.tr('detalle.lugar'), t.lugar),
                   _FilaInfo(
                     Icons.groups,
-                    'Cupo',
+                    context.tr('detalle.cupo'),
                     '${t.inscritos} de ${t.cupoMaximo} lugares ocupados',
                   ),
                   Padding(
@@ -201,9 +202,9 @@ class PantallaDetalleTaller extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Descripción',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Text(
+                    context.tr('detalle.descripcion'),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -211,9 +212,9 @@ class PantallaDetalleTaller extends StatelessWidget {
                     style: const TextStyle(color: Colors.black54),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    '¿Qué aprenderás?',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Text(
+                    context.tr('detalle.queAprenderas'),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -263,13 +264,13 @@ class PantallaDetalleTaller extends StatelessWidget {
                       ),
                       onPressed: () => _baja(context, t),
                       icon: const Icon(Icons.exit_to_app_rounded),
-                      label: const Text('Darme de baja'),
+                      label: Text(context.tr('detalle.darmeBaja')),
                     )
                   else
                     FilledButton(
                       onPressed: t.hayCupo ? () => _confirm(context, t) : null,
                       child: Text(
-                        t.hayCupo ? 'Inscribirme' : 'Sin cupo disponible',
+                        t.hayCupo ? context.tr('detalle.inscribirme') : 'Sin cupo disponible',
                       ),
                     ),
 

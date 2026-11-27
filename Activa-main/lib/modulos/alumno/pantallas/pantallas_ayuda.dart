@@ -152,9 +152,9 @@ class PantallaIdioma extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Se traducen el menú, Inicio, Explorar, Mis talleres, Perfil, '
-            'Configuración, Avisos, Chats grupales y Acerca de; el resto de '
-            'pantallas se irán agregando.',
+            'Se traducen el menú, Inicio, Explorar, Mis talleres, el detalle '
+            'de cada taller, Perfil, Configuración, Avisos, Chats grupales y '
+            'Acerca de; el resto de pantallas se irán agregando.',
             style: TextStyle(color: ColoresApp.muted, fontSize: 12),
           ),
         ],
