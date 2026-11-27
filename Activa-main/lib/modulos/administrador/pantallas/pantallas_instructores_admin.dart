@@ -122,6 +122,26 @@ class PantallaInstructoresAdmin extends StatelessWidget {
     );
   }
 
+  Future<void> _eliminar(BuildContext context, Instructor i) async {
+    final s = context.read<EstadoApp>();
+    final msg = ScaffoldMessenger.of(context);
+    final ok = await confirmarAccion(
+      context,
+      titulo: '¿Eliminar instructor?',
+      mensaje:
+          'Se borrará la cuenta de ${i.nombreCompleto}. Si tiene talleres '
+          'asignados, primero hay que reasignarlos.',
+      textoConfirmar: 'Eliminar',
+      icono: Icons.delete_outline_rounded,
+      peligro: true,
+    );
+    if (!ok) return;
+    final error = await s.eliminarInstructor(i.id);
+    msg.showSnackBar(
+      avisoSnack(content: Text(error ?? 'Instructor eliminado')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<EstadoApp>();
@@ -220,8 +240,10 @@ class PantallaInstructoresAdmin extends StatelessWidget {
                                 context.push(
                                   '/admin/instructores/${i.id}/editar',
                                 );
-                              } else {
+                              } else if (v == 'estado') {
                                 _cambiarEstado(context, i);
+                              } else {
+                                _eliminar(context, i);
                               }
                             },
                             itemBuilder: (_) => [
@@ -232,6 +254,10 @@ class PantallaInstructoresAdmin extends StatelessWidget {
                               PopupMenuItem(
                                 value: 'estado',
                                 child: Text(i.activo ? 'Desactivar' : 'Activar'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'eliminar',
+                                child: Text('Eliminar'),
                               ),
                             ],
                           ),

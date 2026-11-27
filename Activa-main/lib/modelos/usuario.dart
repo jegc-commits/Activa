@@ -40,6 +40,7 @@ class Alumno extends Usuario {
     required super.correo,
     super.telefono,
     super.foto,
+    super.activo,
     required this.numeroControl,
     required this.grupo,
     required this.carrera,
@@ -50,6 +51,7 @@ class Alumno extends Usuario {
     String? apellidoPaterno,
     String? apellidoMaterno,
     String? telefono,
+    bool? activo,
   }) => Alumno(
     id: id,
     nombre: nombre ?? this.nombre,
@@ -58,6 +60,7 @@ class Alumno extends Usuario {
     correo: correo,
     telefono: telefono ?? this.telefono,
     foto: foto,
+    activo: activo ?? this.activo,
     numeroControl: numeroControl,
     grupo: grupo,
     carrera: carrera,

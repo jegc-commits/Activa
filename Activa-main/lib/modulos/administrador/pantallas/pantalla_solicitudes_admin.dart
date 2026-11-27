@@ -95,7 +95,7 @@ class _EstadoSolicitudesAdmin extends State<PantallaSolicitudesAdmin> {
       ),
     );
     if (ok != true || !mounted) return;
-    s.responderSolicitud(
+    await s.responderSolicitud(
       sol.id,
       aprobar: aprobar,
       respuesta: texto.text,

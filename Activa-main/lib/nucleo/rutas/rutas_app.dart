@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../datos/sesion.dart';
+import '../../modelos/enums.dart';
 import '../../modulos/autenticacion/pantallas/pantalla_cambiar_contrasena.dart';
 import '../../modulos/autenticacion/pantallas/pantalla_carga.dart';
 import '../../modulos/alumno/pantallas/pantallas_ayuda.dart';
@@ -40,8 +42,23 @@ import '../../modulos/alumno/pantallas/pantalla_acerca_de.dart';
 import '../../modulos/administrador/pantallas/pantallas_instructores_admin.dart';
 
 // 👇 AQUÍ ESTÁ LA VARIABLE QUE TU APLICACION ESTÁ BUSCANDO
+/// Sesión activa, para que el enrutador pueda bloquear las rutas /admin
+/// cuando quien entró no es administrador.
+EstadoSesion? sesionActiva;
+
 final enrutadorApp = GoRouter(
   initialLocation: '/carga',
+  redirect: (_, state) {
+    final sesion = sesionActiva;
+    final esAdmin = state.matchedLocation.startsWith('/admin');
+    if (!esAdmin) return null;
+    if (sesion?.rol == Rol.admin) return null;
+    return switch (sesion?.rol) {
+      Rol.alumno => '/alumno',
+      Rol.instructor => '/instructor',
+      _ => '/inicio-sesion',
+    };
+  },
   routes: [
     // Ruta raíz
     GoRoute(path: '/', redirect: (_, _) => '/carga'),
@@ -332,6 +349,16 @@ final enrutadorApp = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/admin/alumnos/nuevo',
+      builder: (_, _) => const PantallaFormularioAlumno(),
+    ),
+    GoRoute(
+      path: '/admin/alumnos/:id/editar',
+      builder: (_, s) => PantallaFormularioAlumno(
+        alumnoId: int.parse(s.pathParameters['id']!),
+      ),
+    ),
+    GoRoute(
       path: '/admin/instructores',
       builder: (_, _) => const PantallaInstructoresAdmin(),
     ),
@@ -356,6 +383,10 @@ final enrutadorApp = GoRouter(
     GoRoute(
       path: '/admin/especialidades',
       builder: (_, _) => const PantallaEspecialidades(),
+    ),
+    GoRoute(
+      path: '/admin/categorias',
+      builder: (_, _) => const PantallaCategorias(),
     ),
   ],
 );

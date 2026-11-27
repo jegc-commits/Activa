@@ -244,7 +244,7 @@ class EstadoSesion extends ChangeNotifier {
       carrera: carrera,
     );
     a.ponerContrasena(c, contrasena);
-    if (!await a.agregar(c)) {
+    if (await a.agregar(c) == null) {
       return 'Error: no se pudo guardar la cuenta';
     }
     return null;

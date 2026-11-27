@@ -445,7 +445,12 @@ class _EstadoPantallaFormularioActividad
     );
     if (!ok || !mounted) return;
 
-    s.guardarTaller(t);
+    final guardado = await s.guardarTaller(t);
+    if (!mounted) return;
+    if (guardado == null) {
+      _snack('No se pudo guardar el taller. Revisa la conexión.');
+      return;
+    }
     final msg = ScaffoldMessenger.of(context);
     context.pop();
     msg.showSnackBar(

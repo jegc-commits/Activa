@@ -20,6 +20,24 @@ class Categoria {
   });
 
   Color get color => Color(colorValue);
+
+  Categoria copyWith({
+    int? id,
+    String? clave,
+    String? nombre,
+    String? etiqueta,
+    int? colorValue,
+    String? icono,
+    bool? activa,
+  }) => Categoria(
+    id: id ?? this.id,
+    clave: clave ?? this.clave,
+    nombre: nombre ?? this.nombre,
+    etiqueta: etiqueta ?? this.etiqueta,
+    colorValue: colorValue ?? this.colorValue,
+    icono: icono ?? this.icono,
+    activa: activa ?? this.activa,
+  );
 }
 
 // La BD guarda solo la clave (texto); aquí se traduce a un IconData real.

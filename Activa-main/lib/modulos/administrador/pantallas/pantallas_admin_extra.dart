@@ -9,9 +9,11 @@ import 'package:provider/provider.dart';
 
 import '../../../datos/estado_app.dart';
 import '../../../datos/constantes_app.dart';
+import '../../../modelos/categoria.dart';
 import '../../../modelos/enums.dart';
 import '../../../nucleo/componentes/avisos.dart';
 import '../../../nucleo/componentes/boton_activa.dart';
+import '../../../nucleo/componentes/dialogo_confirmar.dart';
 import '../../../nucleo/componentes/estructura_subpantalla.dart';
 import '../../../nucleo/componentes/tarjeta_app.dart';
 import '../../../nucleo/tema/tema_app.dart';
@@ -147,6 +149,46 @@ class _EstadoEspecialidades extends State<PantallaEspecialidades> {
     ).showSnackBar(avisoSnack(content: Text('Se quitó "$nombre"')));
   }
 
+  Future<void> _editar(String nombre) async {
+    final ctrl = TextEditingController(text: nombre);
+    final s = context.read<EstadoApp>();
+    final msg = ScaffoldMessenger.of(context);
+    final nuevo = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Editar especialidad',
+          style: TextStyle(fontWeight: FontWeight.w800, color: ColoresApp.navy),
+        ),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(labelText: 'Nombre'),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (nuevo == null || nuevo.isEmpty || nuevo == nombre) return;
+    final error = await s.editarEspecialidad(nombre, nuevo);
+    msg.showSnackBar(
+      avisoSnack(content: Text(error ?? 'Especialidad actualizada')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final especialidades = context.watch<EstadoApp>().especialidades;
@@ -206,12 +248,26 @@ class _EstadoEspecialidades extends State<PantallaEspecialidades> {
                         color: ColoresApp.primary,
                       ),
                       title: Text(e),
-                      trailing: IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: ColoresApp.danger,
-                        ),
-                        onPressed: () => _eliminar(e),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Editar',
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              color: ColoresApp.primary,
+                            ),
+                            onPressed: () => _editar(e),
+                          ),
+                          IconButton(
+                            tooltip: 'Eliminar',
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: ColoresApp.danger,
+                            ),
+                            onPressed: () => _eliminar(e),
+                          ),
+                        ],
                       ),
                     ),
                     if (e != especialidades.last) const Divider(height: 1),
@@ -408,6 +464,311 @@ class _EstadoHojaNuevoAviso extends State<_HojaNuevoAviso> {
             BotonActiva(etiqueta: 'Publicar aviso', alPresionar: _publicar),
           ],
         ),
+      ),
+    );
+  }
+}
+// ───────────────────── categorías de talleres ─────────────────────
+const _coloresCategoria = <({String nombre, int valor})>[
+  (nombre: 'Naranja', valor: 0xFFE08A3C),
+  (nombre: 'Rosa', valor: 0xFFD1457B),
+  (nombre: 'Morado', valor: 0xFF6C4FD1),
+  (nombre: 'Azul', valor: 0xFF3C8DE0),
+  (nombre: 'Verde', valor: 0xFF2E9E6B),
+  (nombre: 'Rojo', valor: 0xFFD64545),
+  (nombre: 'Amarillo', valor: 0xFFC9A227),
+];
+
+String _claveCategoria(String texto) {
+  const acentos = {
+    'á': 'a',
+    'é': 'e',
+    'í': 'i',
+    'ó': 'o',
+    'ú': 'u',
+    'ü': 'u',
+    'ñ': 'n',
+  };
+  final limpio = texto
+      .toLowerCase()
+      .split('')
+      .map((c) => acentos[c] ?? c)
+      .join()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+  return limpio.isEmpty ? 'categoria' : limpio;
+}
+
+class PantallaCategorias extends StatefulWidget {
+  const PantallaCategorias({super.key});
+  @override
+  State<PantallaCategorias> createState() => _EstadoPantallaCategorias();
+}
+
+class _EstadoPantallaCategorias extends State<PantallaCategorias> {
+  Future<void> _abrirFormulario({Categoria? actual}) async {
+    final nombre = TextEditingController(text: actual?.nombre ?? '');
+    final etiqueta = TextEditingController(text: actual?.etiqueta ?? '');
+    final clave = TextEditingController(text: actual?.clave ?? '');
+    var color = actual?.colorValue ?? _coloresCategoria.first.valor;
+    var icono = actual?.icono ?? kIconos.keys.first;
+
+    final guardar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: Text(
+            actual == null ? 'Nueva categoría' : 'Editar categoría',
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: ColoresApp.navy,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nombre,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre',
+                    hintText: 'Ej. Deportes',
+                  ),
+                  onChanged: (v) {
+                    if (actual == null) clave.text = _claveCategoria(v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: etiqueta,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Etiqueta',
+                    hintText: 'Ej. Deportiva',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: clave,
+                  decoration: const InputDecoration(
+                    labelText: 'Clave (para filtros)',
+                    hintText: 'deportes',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  initialValue: color,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Color'),
+                  items: [
+                    for (final c in _coloresCategoria)
+                      DropdownMenuItem(
+                        value: c.valor,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: Color(c.valor),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(c.nombre),
+                          ],
+                        ),
+                      ),
+                  ],
+                  onChanged: (v) => setLocal(() => color = v ?? color),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: icono,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Ícono'),
+                  items: [
+                    for (final e in kIconos.entries)
+                      DropdownMenuItem(
+                        value: e.key,
+                        child: Row(
+                          children: [
+                            Icon(e.value, size: 20),
+                            const SizedBox(width: 8),
+                            Text(e.key),
+                          ],
+                        ),
+                      ),
+                  ],
+                  onChanged: (v) => setLocal(() => icono = v ?? icono),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (nombre.text.trim().isEmpty) return;
+                Navigator.pop(ctx, true);
+              },
+              child: Text(actual == null ? 'Agregar' : 'Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (guardar != true) {
+      nombre.dispose();
+      etiqueta.dispose();
+      clave.dispose();
+      return;
+    }
+
+    final n = nombre.text.trim();
+    final et = etiqueta.text.trim();
+    final cl = _claveCategoria(
+      clave.text.trim().isEmpty ? n : clave.text.trim(),
+    );
+    nombre.dispose();
+    etiqueta.dispose();
+    clave.dispose();
+
+    if (!mounted) return;
+    final s = context.read<EstadoApp>();
+    final msg = ScaffoldMessenger.of(context);
+    final cat = Categoria(
+      id: actual?.id ?? 0,
+      clave: cl,
+      nombre: n,
+      etiqueta: et.isEmpty ? n : et,
+      colorValue: color,
+      icono: icono,
+      activa: true,
+    );
+    if (actual == null) {
+      final creada = await s.agregarCategoria(cat);
+      msg.showSnackBar(
+        avisoSnack(
+          content: Text(
+            creada == null
+                ? 'No se pudo crear la categoría'
+                : 'Categoría agregada',
+          ),
+        ),
+      );
+    } else {
+      final error = await s.editarCategoria(cat);
+      msg.showSnackBar(
+        avisoSnack(content: Text(error ?? 'Categoría actualizada')),
+      );
+    }
+  }
+
+  Future<void> _eliminar(Categoria c) async {
+    final s = context.read<EstadoApp>();
+    final msg = ScaffoldMessenger.of(context);
+    final ok = await confirmarAccion(
+      context,
+      titulo: '¿Eliminar categoría?',
+      mensaje:
+          'Se quitará "${c.nombre}". Si hay talleres con esta categoría, '
+          'se ocultará pero no se borrarán los talleres.',
+      textoConfirmar: 'Eliminar',
+      icono: Icons.delete_outline_rounded,
+      peligro: true,
+    );
+    if (!ok) return;
+    final error = await s.eliminarCategoria(c.id);
+    msg.showSnackBar(
+      avisoSnack(content: Text(error ?? 'Categoría eliminada')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cats = context.watch<EstadoApp>().categorias;
+    return EstructuraSubpantalla(
+      title: 'Categorías',
+      fallback: '/admin/perfil',
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text(
+            'Las categorías agrupan los talleres (Deportes, Cultura, etc.) '
+            'y son las que ven los alumnos al explorar.',
+            style: TextStyle(color: ColoresApp.muted, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          if (cats.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'No hay categorías todavía',
+                  style: TextStyle(color: ColoresApp.muted),
+                ),
+              ),
+            )
+          else
+            for (final c in cats)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: TarjetaApp(
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      backgroundColor: c.color,
+                      child: Icon(iconoDe(c.icono), color: Colors.white),
+                    ),
+                    title: Text(
+                      c.nombre,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      '${c.etiqueta} · ${c.clave}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Editar',
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: ColoresApp.primary,
+                          ),
+                          onPressed: () => _abrirFormulario(actual: c),
+                        ),
+                        IconButton(
+                          tooltip: 'Eliminar',
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: ColoresApp.danger,
+                          ),
+                          onPressed: () => _eliminar(c),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: () => _abrirFormulario(),
+            icon: const Icon(Icons.add),
+            label: const Text('Agregar categoría'),
+          ),
+        ],
       ),
     );
   }

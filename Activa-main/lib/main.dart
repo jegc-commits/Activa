@@ -6,6 +6,7 @@ import 'aplicacion.dart';
 import 'datos/almacen_cuentas.dart';
 import 'datos/estado_app.dart';
 import 'datos/sesion.dart';
+import 'nucleo/rutas/rutas_app.dart';
 
 const String _supabaseUrl = 'https://xxfasklvsoqvhfkhevxf.supabase.co';
 const String _supabaseAnonKey =
@@ -22,14 +23,14 @@ Future<void> main() async {
   final almacen = await AlmacenCuentas.cargar();
   final estado = EstadoApp(almacen);
   await estado.cargar();
+  final sesion = EstadoSesion(almacen);
+  sesionActiva = sesion;
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: estado),
-        ChangeNotifierProvider<EstadoSesion>(
-          create: (_) => EstadoSesion(almacen),
-        ),
+        ChangeNotifierProvider.value(value: sesion),
       ],
       child: const AplicacionActiva(),
     ),

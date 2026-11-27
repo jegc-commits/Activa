@@ -383,6 +383,11 @@ class PantallaPerfilAdmin extends StatelessWidget {
                     () => context.push('/admin/especialidades'),
                   ),
                   _item(
+                    Icons.category_outlined,
+                    'Categorías de talleres',
+                    () => context.push('/admin/categorias'),
+                  ),
+                  _item(
                     Icons.edit,
                     'Editar perfil',
                     () => context.push('/perfil/editar'),

@@ -56,6 +56,7 @@ class Taller {
   });
 
   Taller copyWith({
+    int? id,
     String? nombre,
     String? descripcion,
     Categoria? categoria,
@@ -69,7 +70,7 @@ class Taller {
     Uint8List? foto,
     int? inscritos,
   }) => Taller(
-    id: id,
+    id: id ?? this.id,
     nombre: nombre ?? this.nombre,
     descripcion: descripcion ?? this.descripcion,
     categoria: categoria ?? this.categoria,

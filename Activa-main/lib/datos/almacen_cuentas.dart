@@ -49,6 +49,9 @@ class CuentaGuardada {
   String sal;
   String hash;
 
+  String get nombreCompleto =>
+      '$nombre $apellidoPaterno $apellidoMaterno'.trim();
+
   Alumno aAlumno() => Alumno(
     id: id,
     nombre: nombre,
@@ -56,6 +59,7 @@ class CuentaGuardada {
     apellidoMaterno: apellidoMaterno,
     correo: correo,
     telefono: telefono.isEmpty ? null : telefono,
+    activo: activo,
     numeroControl: numeroControl,
     grupo: grupo,
     carrera: carrera,
@@ -176,16 +180,16 @@ class AlmacenCuentas {
   }
 
   /// Sincroniza la lista en memoria hacia Supabase.
+  /// Se usa `id` como conflicto para que cambiar el nombre de usuario no
+  /// duplique la fila (el `usuario` también es único, pero es editable).
   Future<bool> guardar() {
     _cola = _cola.then((_) async {
       try {
         for (final c in _cuentas) {
-          await _db
-              .from('usuarios')
-              .upsert(
-                c.aMapaSupabase(incluirId: c.id > 0),
-                onConflict: 'usuario',
-              );
+          await _db.from('usuarios').upsert(
+            c.aMapaSupabase(),
+            onConflict: 'id',
+          );
         }
         return true;
       } catch (e) {
@@ -194,6 +198,32 @@ class AlmacenCuentas {
       }
     });
     return _cola;
+  }
+
+  /// Guarda una sola cuenta (edición de datos de perfil o de administración).
+  Future<bool> actualizar(CuentaGuardada c) async {
+    try {
+      await _db
+          .from('usuarios')
+          .update(c.aMapaSupabase(incluirId: false))
+          .eq('id', c.id);
+      return true;
+    } catch (e) {
+      debugPrint('No se pudo actualizar la cuenta en Supabase: $e');
+      return false;
+    }
+  }
+
+  /// Elimina la cuenta de la base y de la lista en memoria.
+  Future<bool> eliminar(CuentaGuardada c) async {
+    try {
+      await _db.from('usuarios').delete().eq('id', c.id);
+      _cuentas.remove(c);
+      return true;
+    } catch (e) {
+      debugPrint('No se pudo eliminar la cuenta en Supabase: $e');
+      return false;
+    }
   }
 
   List<CuentaGuardada> get cuentas => List.unmodifiable(_cuentas);
@@ -207,6 +237,15 @@ class AlmacenCuentas {
   CuentaGuardada? porId(int id) {
     for (final c in _cuentas) {
       if (c.id == id) return c;
+    }
+    return null;
+  }
+
+  CuentaGuardada? porNumeroControl(String control) {
+    final c = control.trim();
+    if (c.isEmpty) return null;
+    for (final u in _cuentas) {
+      if (u.rol == Rol.alumno && u.numeroControl == c) return u;
     }
     return null;
   }
@@ -255,7 +294,7 @@ class AlmacenCuentas {
     return u;
   }
 
-  Future<bool> agregar(CuentaGuardada c) async {
+  Future<CuentaGuardada?> agregar(CuentaGuardada c) async {
     try {
       final insertada = await _db
           .from('usuarios')
@@ -267,10 +306,10 @@ class AlmacenCuentas {
       if (cuentaReal.id >= _siguienteId) {
         _siguienteId = cuentaReal.id + 1;
       }
-      return true;
+      return cuentaReal;
     } catch (e) {
       debugPrint('Error al registrar cuenta en Supabase: $e');
-      return false;
+      return null;
     }
   }
 
