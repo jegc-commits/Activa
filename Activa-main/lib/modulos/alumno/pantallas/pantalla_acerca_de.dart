@@ -6,7 +6,7 @@ import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/utilidades/textos.dart';
 
 // Agrega aquí a tu equipo
-const _equipo = ['Nombre del integrante 1', 'Nombre del integrante 2'];
+const _equipo = ['García Calvillo José Emmanuel', 'Rodríguez Bárcenas María Guadalupe'];
 
 class PantallaAcercaDe extends StatelessWidget {
   const PantallaAcercaDe({super.key});
@@ -97,14 +97,14 @@ class PantallaAcercaDe extends StatelessWidget {
             'Instructor: pasar lista, publicar avisos, chatear con su grupo y enviar solicitudes.\n'
             'Administrador: gestionar actividades e instructores, atender solicitudes y exportar reportes.',
           )),
-          _bloque(Icons.code_rounded, 'Tecnología', _texto('Prototipo desarrollado con Flutter y Dart.')),
+          _bloque(Icons.code_rounded, 'Tecnología', _texto('Aplicación móvil desarrollada con Flutter y Dart.')),
           _bloque(Icons.school_rounded, 'Equipo de desarrollo', Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [for (final n in _equipo) _texto('• $n')],
           )),
           const SizedBox(height: 4),
           const Center(
-            child: Text('© 2026 ACTIVA · Proyecto integrador',
+            child: Text('© 2026 ACTIVA · Aplicación móvil',
                 style: TextStyle(color: Colors.black38, fontSize: 11)),
           ),
         ],

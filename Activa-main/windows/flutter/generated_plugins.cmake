@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   audioplayers_windows
+  emoji_picker_flutter
   file_saver
   file_selector_windows
   share_plus

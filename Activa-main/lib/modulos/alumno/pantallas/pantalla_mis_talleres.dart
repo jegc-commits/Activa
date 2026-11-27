@@ -10,6 +10,7 @@ import '../componentes/miniatura_taller.dart';
 import '../../../nucleo/componentes/avisos.dart';
 
 import '../../../nucleo/servicios/documentos.dart';
+import '../../../nucleo/utilidades/textos.dart';
 
 class PantallaMisTalleres extends StatelessWidget {
   const PantallaMisTalleres({super.key});
@@ -64,9 +65,9 @@ class PantallaMisTalleres extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(20),
         children: [
-          const Text(
-            'Mis talleres',
-            style: TextStyle(
+          Text(
+            context.tr('mistalleres.titulo'),
+            style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w800,
               color: ColoresApp.navy,
@@ -339,10 +340,10 @@ class PantallaMisTalleres extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Aún no estás inscrito en ninguna taller',
+          Text(
+            context.tr('mistalleres.vacio'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 16,
               color: ColoresApp.navy,

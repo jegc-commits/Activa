@@ -236,7 +236,7 @@ class _EstadoEditarPerfilGeneral extends State<PantallaEditarPerfilGeneral> {
 
             if (_rol == Rol.admin) ...[
               _etiqueta('Área'),
-              _bloqueado(Icons.apartment, 'Coordinación de Paraescolares'),
+              _bloqueado(Icons.apartment, 'Coordinación de Talleres y Clubes'),
               _etiqueta('Correo institucional'),
               _bloqueado(Icons.email, ad.correo),
               _etiqueta('Cargo'),

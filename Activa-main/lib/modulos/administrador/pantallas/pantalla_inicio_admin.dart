@@ -66,7 +66,10 @@ class PantallaInicioAdmin extends StatelessWidget {
                   ],
                 ),
               ),
-              const AvatarActiva(rol: Rol.admin, iniciales: 'CP', radio: 24),
+              GestureDetector(
+                onTap: () => context.go('/admin/perfil'),
+                child: const AvatarActiva(rol: Rol.admin, iniciales: 'CP', radio: 24),
+              ),
             ],
           ),
           const SizedBox(height: 16),

@@ -328,7 +328,7 @@ class PantallaPerfilAdmin extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Coordinación de Paraescolares',
+            'Coordinación de Talleres y Clubes',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 20,

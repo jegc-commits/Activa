@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +16,12 @@ import '../../nucleo/componentes/tarjeta_app.dart';
 import '../../nucleo/tema/tema_app.dart';
 import '../../nucleo/utilidades/formateadores.dart';
 import '../../nucleo/utilidades/textos.dart';
+
+// ───────── Stickers rápidos (emojis grandes, sin texto) ─────────
+const _stickers = <String>[
+  '🎉', '👏', '👍', '❤️', '😂', '🔥', '🏆', '⚽',
+  '🎨', '📚', '🙌', '✅', '😮', '😢', '🤔', '👀',
+];
 
 String _hora(DateTime d) =>
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
@@ -49,6 +58,75 @@ class _PuntosPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+// ───────── Fondo animado: burbujas flotando despacito ─────────
+class _FondoAnimado extends StatefulWidget {
+  const _FondoAnimado({required this.oscuro});
+  final bool oscuro;
+
+  @override
+  State<_FondoAnimado> createState() => _EstadoFondoAnimado();
+}
+
+class _EstadoFondoAnimado extends State<_FondoAnimado>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 18),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (_, _) => CustomPaint(
+          painter: _BurbujasPainter(_c.value, claro: !widget.oscuro),
+          size: Size.infinite,
+        ),
+      ),
+    );
+  }
+}
+
+class _BurbujasPainter extends CustomPainter {
+  _BurbujasPainter(this.t, {required this.claro});
+  final double t;
+  final bool claro;
+
+  // 10 burbujas con tamaño, posición y velocidad fijas (semilla estable)
+  static final _burbujas = List.generate(10, (i) {
+    final r = math.Random(i * 97);
+    return (
+      x: r.nextDouble(),
+      y: r.nextDouble(),
+      radio: 14.0 + r.nextDouble() * 26,
+      vel: 0.4 + r.nextDouble() * 0.6,
+      fase: r.nextDouble(),
+    );
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final color = (claro ? ColoresApp.primary : Colors.white)
+        .withValues(alpha: claro ? 0.07 : 0.08);
+    final pintura = Paint()..color = color;
+    for (final b in _burbujas) {
+      final y = (1 - ((t * b.vel + b.fase) % 1)) * (size.height + 60) - 30;
+      final x = b.x * size.width + math.sin((t + b.fase) * 2 * math.pi) * 14;
+      canvas.drawCircle(Offset(x, y), b.radio, pintura);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BurbujasPainter old) => old.t != t;
 }
 
 BoxDecoration _decoFondo(_Fondo f) => BoxDecoration(
@@ -209,6 +287,8 @@ class PantallaChatGrupal extends StatefulWidget {
 
 class _EstadoChatGrupal extends State<PantallaChatGrupal> {
   final _texto = TextEditingController();
+  bool _panelAbierto = false;
+  int _pestanaPanel = 0; // 0 = emojis, 1 = stickers
 
   @override
   void dispose() {
@@ -216,12 +296,116 @@ class _EstadoChatGrupal extends State<PantallaChatGrupal> {
     super.dispose();
   }
 
-  void _enviar(Rol rol) {
-    final t = _texto.text.trim();
+  void _enviar(Rol rol, {String? texto}) {
+    final t = (texto ?? _texto.text).trim();
     if (t.isEmpty) return;
     context.read<EstadoApp>().enviarMensaje(tallerId: widget.tallerId, rol: rol, texto: t);
-    _texto.clear();
+    if (texto == null) _texto.clear();
   }
+
+  void _alternarPanel() {
+    if (_panelAbierto) {
+      setState(() => _panelAbierto = false);
+    } else {
+      FocusScope.of(context).unfocus();
+      setState(() => _panelAbierto = true);
+    }
+  }
+
+  void _verIntegrantes(EstadoApp s, Taller t) {
+    final alumnos = s.alumnosDe(t.id);
+    final inst = t.instructor;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.35,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scroll) => ListView(
+          controller: scroll,
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          children: [
+            Text(t.nombre,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w800, color: ColoresApp.navy)),
+            Text('${alumnos.length + 1} integrantes',
+                style: const TextStyle(color: ColoresApp.muted, fontSize: 12)),
+            const SizedBox(height: 18),
+            const Text('Instructor del grupo',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: ColoresApp.teal)),
+            const SizedBox(height: 8),
+            _tarjetaIntegrante(
+              nombre: inst.nombreCompleto,
+              correo: inst.correo,
+              etiqueta: 'Instructor',
+              color: ColoresApp.teal,
+            ),
+            const SizedBox(height: 18),
+            Text('Alumnos (${alumnos.length})',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: ColoresApp.navy)),
+            const SizedBox(height: 8),
+            for (final a in alumnos)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _tarjetaIntegrante(
+                  nombre: a.nombreCompleto,
+                  correo: a.correo,
+                  etiqueta: 'Alumno',
+                  color: ColoresApp.primary,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tarjetaIntegrante({
+    required String nombre,
+    required String correo,
+    required String etiqueta,
+    required Color color,
+  }) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: ColoresApp.background,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: ColoresApp.line),
+    ),
+    child: Row(children: [
+      CircleAvatar(
+        radius: 20,
+        backgroundColor: color.withValues(alpha: 0.15),
+        child: Text(
+          nombre.isEmpty ? '?' : nombre[0].toUpperCase(),
+          style: TextStyle(color: color, fontWeight: FontWeight.w800),
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(nombre.isEmpty ? '(sin nombre)' : nombre,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          Text(correo,
+              style: const TextStyle(color: ColoresApp.muted, fontSize: 12)),
+        ]),
+      ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(etiqueta, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
+      ),
+    ]),
+  );
 
   void _elegirFondo(EstadoApp s) {
     final actual = s.fondoChat(widget.tallerId);
@@ -317,11 +501,15 @@ class _EstadoChatGrupal extends State<PantallaChatGrupal> {
             onPressed: () => context.canPop() ? context.pop() : context.go('/chats'),
           ),
         ),
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(t.nombre, style: const TextStyle(fontSize: 17)),
-          Text('${s.alumnosDe(t.id).length + 1} integrantes',
-              style: const TextStyle(fontSize: 11, color: ColoresApp.muted)),
-        ]),
+        title: GestureDetector(
+          onTap: () => _verIntegrantes(s, t),
+          behavior: HitTestBehavior.opaque,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t.nombre, style: const TextStyle(fontSize: 17)),
+            Text('${s.alumnosDe(t.id).length + 1} integrantes',
+                style: const TextStyle(fontSize: 11, color: ColoresApp.muted)),
+          ]),
+        ),
         actions: [
           IconButton(
             tooltip: fijo ? 'Desanclar' : 'Anclar chat',
@@ -345,56 +533,138 @@ class _EstadoChatGrupal extends State<PantallaChatGrupal> {
       ),
       body: Container(
         decoration: _decoFondo(fondo),
-        child: CustomPaint(
-          painter: fondo.puntos ? _PuntosPainter() : null,
-          child: SafeArea(
-            child: Column(children: [
-              Expanded(
-                child: mensajes.isEmpty
-                    ? const Center(
-                        child: Text('Todavía no hay mensajes 👋',
-                            style: TextStyle(color: Colors.black54)))
-                    : ListView.builder(
-                        reverse: true,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: mensajes.length,
-                        itemBuilder: (_, i) {
-                          final m = mensajes[i];
-                          final primeroDelDia = i == mensajes.length - 1 ||
-                              !mismoDia(mensajes[i + 1].fecha, m.fecha);
-                          return Column(children: [
-                            if (primeroDelDia) _separador(m.fecha),
-                            _Burbuja(mensaje: m, mio: m.rol == rol && m.autor == yo),
-                          ]);
-                        },
-                      ),
-              ),
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 8, 12, 12),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: ColoresApp.line)),
-                ),
-                child: Row(children: [
+        child: Stack(
+          children: [
+            Positioned.fill(child: _FondoAnimado(oscuro: fondo.nombre == 'Noche')),
+            CustomPaint(
+              painter: fondo.puntos ? _PuntosPainter() : null,
+              child: SafeArea(
+                child: Column(children: [
                   Expanded(
-                    child: TextField(
-                      controller: _texto,
-                      textCapitalization: TextCapitalization.sentences,
-                      minLines: 1,
-                      maxLines: 4,
-                      onSubmitted: (_) => _enviar(rol),
-                      decoration: const InputDecoration(hintText: 'Escribe un mensaje...'),
-                    ),
+                    child: mensajes.isEmpty
+                        ? const Center(
+                            child: Text('Todavía no hay mensajes 👋',
+                                style: TextStyle(color: Colors.black54)))
+                        : ListView.builder(
+                            reverse: true,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: mensajes.length,
+                            itemBuilder: (_, i) {
+                              final m = mensajes[i];
+                              final primeroDelDia = i == mensajes.length - 1 ||
+                                  !mismoDia(mensajes[i + 1].fecha, m.fecha);
+                              return Column(children: [
+                                if (primeroDelDia) _separador(m.fecha),
+                                _Burbuja(mensaje: m, mio: m.rol == rol && m.autor == yo),
+                              ]);
+                            },
+                          ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed: () => _enviar(rol),
-                    icon: const Icon(Icons.send_rounded),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 12, 12),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(top: BorderSide(color: ColoresApp.line)),
+                    ),
+                    child: Row(children: [
+                      IconButton(
+                        tooltip: 'Emojis y stickers',
+                        icon: Icon(
+                          _panelAbierto ? Icons.keyboard_rounded : Icons.emoji_emotions_outlined,
+                          color: ColoresApp.primary,
+                        ),
+                        onPressed: _alternarPanel,
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: _texto,
+                          textCapitalization: TextCapitalization.sentences,
+                          minLines: 1,
+                          maxLines: 4,
+                          onTap: () {
+                            if (_panelAbierto) setState(() => _panelAbierto = false);
+                          },
+                          onSubmitted: (_) => _enviar(rol),
+                          decoration: const InputDecoration(hintText: 'Escribe un mensaje...'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        onPressed: () => _enviar(rol),
+                        icon: const Icon(Icons.send_rounded),
+                      ),
+                    ]),
+                  ),
+                  Offstage(
+                    offstage: !_panelAbierto,
+                    child: SizedBox(
+                      height: 280,
+                      child: Column(children: [
+                        Container(
+                          color: Colors.white,
+                          child: Row(children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => setState(() => _pestanaPanel = 0),
+                                child: Text('Emojis',
+                                    style: TextStyle(
+                                        fontWeight: _pestanaPanel == 0
+                                            ? FontWeight.w800
+                                            : FontWeight.normal,
+                                        color: _pestanaPanel == 0
+                                            ? ColoresApp.primary
+                                            : ColoresApp.muted)),
+                              ),
+                            ),
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => setState(() => _pestanaPanel = 1),
+                                child: Text('Stickers',
+                                    style: TextStyle(
+                                        fontWeight: _pestanaPanel == 1
+                                            ? FontWeight.w800
+                                            : FontWeight.normal,
+                                        color: _pestanaPanel == 1
+                                            ? ColoresApp.primary
+                                            : ColoresApp.muted)),
+                              ),
+                            ),
+                          ]),
+                        ),
+                        Expanded(
+                          child: _pestanaPanel == 0
+                              ? EmojiPicker(
+                                  onEmojiSelected: (_, emoji) =>
+                                      _texto.text += emoji.emoji,
+                                  config: const Config(
+                                    height: 230,
+                                    emojiViewConfig: EmojiViewConfig(columns: 8),
+                                  ),
+                                )
+                              : GridView.count(
+                                  crossAxisCount: 4,
+                                  padding: const EdgeInsets.all(12),
+                                  children: [
+                                    for (final emo in _stickers)
+                                      InkWell(
+                                        onTap: () {
+                                          _enviar(rol, texto: emo);
+                                          setState(() => _panelAbierto = false);
+                                        },
+                                        child: Center(
+                                          child: Text(emo, style: const TextStyle(fontSize: 34)),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                        ),
+                      ]),
+                    ),
                   ),
                 ]),
               ),
-            ]),
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -10,6 +10,7 @@ import '../modelos/categoria.dart';
 import '../nucleo/utilidades/formateadores.dart';
 import '../modelos/usuario.dart';
 import '../modelos/comunicacion.dart';
+import '../nucleo/servicios/notificaciones.dart';
 import 'almacen_cuentas.dart';
 
 class EstadoApp extends ChangeNotifier {
@@ -944,6 +945,7 @@ class EstadoApp extends ChangeNotifier {
         'archivado': false,
       });
     });
+    Notificaciones.mostrar(titulo: aviso.titulo, cuerpo: aviso.mensaje);
     notifyListeners();
   }
 

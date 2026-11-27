@@ -195,7 +195,7 @@ class PantallaInstructoresAdmin extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  '${i.especialidad} · ${s.alumnosDeInstructor(i.id)} alumnos',
+                                  '${s.alumnosDeInstructor(i.id)} alumnos',
                                   style: const TextStyle(
                                     color: Colors.black54,
                                     fontSize: 11,
@@ -582,16 +582,6 @@ class _EstadoPantallaFormularioInstructor
                 return repetido ? 'Ese correo ya está registrado' : null;
               },
             ),
-            _label('Especialidad'),
-            TextFormField(
-              controller: _esp,
-              textCapitalization: TextCapitalization.sentences,
-              inputFormatters: formatoNombre(),
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.sports)),
-              validator: (v) =>
-                  validarNombre(v, campo: 'La especialidad', min: 3),
-            ),
-
             // ---- contraseña temporal (solo al crear) ----
             if (!_editando) ...[
               _label('Contraseña temporal'),

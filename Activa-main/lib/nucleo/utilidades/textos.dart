@@ -62,4 +62,51 @@ const _textos = <String, List<String>>{
   'config.privacidad': ['Aviso de privacidad', 'Privacy notice', 'Avis de confidentialité'],
   'config.ayuda': ['Ayuda y soporte', 'Help and support', 'Aide et assistance'],
   'config.acerca': ['Acerca de la aplicación', 'About the app', "À propos de l'application"],
+
+  // ---- Explorar ----
+  'explorar.titulo': ['Talleres', 'Workshops', 'Ateliers'],
+  'explorar.subtitulo': [
+    'Encuentra tu pasión, forma parte y vive la experiencia.',
+    'Find your passion, join in and live the experience.',
+    'Trouve ta passion, participe et vis l\'expérience.',
+  ],
+  'explorar.buscar': ['¿Qué taller buscas?', 'What workshop are you looking for?', 'Quel atelier cherches-tu ?'],
+  'explorar.todas': ['Todas', 'All', 'Tous'],
+  'explorar.sinResultados': ['No encontramos talleres', 'No workshops found', 'Aucun atelier trouvé'],
+
+  // ---- Mis talleres ----
+  'mistalleres.titulo': ['Mis talleres', 'My workshops', 'Mes ateliers'],
+  'mistalleres.activos': ['Activos', 'Active', 'Actifs'],
+  'mistalleres.historial': ['Historial', 'History', 'Historique'],
+  'mistalleres.vacio': [
+    'Aún no estás inscrito en ningún taller',
+    'You are not enrolled in any workshop yet',
+    "Tu n'es inscrit à aucun atelier pour l'instant",
+  ],
+
+  // ---- Detalle de taller ----
+  'detalle.inscribirme': ['Inscribirme', 'Enroll', "M'inscrire"],
+  'detalle.darmeBaja': ['Darme de baja', 'Unenroll', 'Me désinscrire'],
+  'detalle.horario': ['Horario', 'Schedule', 'Horaire'],
+  'detalle.lugar': ['Lugar', 'Place', 'Lieu'],
+  'detalle.cupo': ['Cupo', 'Spots', 'Places'],
+  'detalle.instructor': ['Instructor', 'Instructor', 'Instructeur'],
+  'detalle.descripcion': ['Descripción', 'Description', 'Description'],
+  'detalle.queAprenderas': ['¿Qué aprenderás?', 'What will you learn?', 'Que vas-tu apprendre ?'],
+
+  // ---- Encuestas ----
+  'encuestas.titulo': ['Encuestas de mis clubes', 'Club surveys', 'Sondages des clubs'],
+  'encuestas.vacio': [
+    'No tienes encuestas pendientes',
+    'You have no pending surveys',
+    "Tu n'as aucun sondage en attente",
+  ],
+  'encuestas.enviar': ['Enviar respuesta', 'Submit answer', 'Envoyer la réponse'],
+
+  // ---- Editar perfil ----
+  'editarperfil.titulo': ['Editar perfil', 'Edit profile', 'Modifier le profil'],
+  'editarperfil.nombre': ['Nombre', 'Name', 'Nom'],
+  'editarperfil.correo': ['Correo', 'Email', 'E-mail'],
+  'editarperfil.telefono': ['Teléfono', 'Phone', 'Téléphone'],
+  'editarperfil.guardar': ['Guardar cambios', 'Save changes', 'Enregistrer les modifications'],
 };

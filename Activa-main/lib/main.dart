@@ -7,6 +7,7 @@ import 'datos/almacen_cuentas.dart';
 import 'datos/estado_app.dart';
 import 'datos/sesion.dart';
 import 'nucleo/rutas/rutas_app.dart';
+import 'nucleo/servicios/notificaciones.dart';
 
 const String _supabaseUrl = 'https://xxfasklvsoqvhfkhevxf.supabase.co';
 const String _supabaseAnonKey =
@@ -19,6 +20,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnonKey);
+  await Notificaciones.inicializar();
 
   final almacen = await AlmacenCuentas.cargar();
   final estado = EstadoApp(almacen);

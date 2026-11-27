@@ -11,9 +11,9 @@ import 'package:http/http.dart' as http;
 
 class ServicioCorreoRecuperacion {
   // ====== PEGA AQUÍ TUS DATOS DE EMAILJS (ver la guía) ======
-  static const String _serviceId = 'TU_SERVICE_ID';
-  static const String _templateId = 'TU_TEMPLATE_ID';
-  static const String _publicKey = 'TU_PUBLIC_KEY';
+  static const String _serviceId = 'service_uqe3iqn';
+  static const String _templateId = 'template_tf2xubn';
+  static const String _publicKey = 'syiA-ZlfIHBP7Ddyx';
   // ===========================================================
 
   /// true cuando ya se pegaron los 3 datos de arriba.

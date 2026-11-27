@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../../nucleo/tema/tema_app.dart';
 import '../../../nucleo/componentes/aparicion_suave.dart';
+import '../../../nucleo/utilidades/textos.dart';
 import '../../../datos/estado_app.dart';
 import '../componentes/tarjeta_actividad.dart';
 
@@ -92,7 +93,7 @@ class _EstadoPantallaExplorar extends State<PantallaExplorar> {
           children: [
             // Título de la pantalla
             Text(
-              'Talleres',
+              context.tr('explorar.titulo'),
               style: TextStyle(
                 fontFamily: FuentesApp.century,
                 fontSize: 26,
@@ -101,9 +102,9 @@ class _EstadoPantallaExplorar extends State<PantallaExplorar> {
               ),
             ),
             // Subtítulo
-            const Text(
-              'Encuentra tu pasión, forma parte y vive la experiencia.',
-              style: TextStyle(color: ColoresApp.muted, fontSize: 13),
+            Text(
+              context.tr('explorar.subtitulo'),
+              style: const TextStyle(color: ColoresApp.muted, fontSize: 13),
             ),
             const SizedBox(height: 14),
             // Buscador (el estilo viene del tema)
@@ -113,7 +114,7 @@ class _EstadoPantallaExplorar extends State<PantallaExplorar> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search_rounded),
-                hintText: '¿Qué taller buscas?',
+                hintText: context.tr('explorar.buscar'),
                 // Botón X solo cuando ya escribió algo
                 suffixIcon: q.isEmpty
                     ? null
@@ -135,7 +136,7 @@ class _EstadoPantallaExplorar extends State<PantallaExplorar> {
                 children: [
                   // Chip "Todas"
                   _chip(
-                    'Todas',
+                    context.tr('explorar.todas'),
                     _cat == null,
                     () => setState(() => _cat = null),
                   ),
@@ -166,9 +167,9 @@ class _EstadoPantallaExplorar extends State<PantallaExplorar> {
                             color: ColoresApp.primary.withValues(alpha: 0.4),
                           ),
                           const SizedBox(height: 10),
-                          const Text(
-                            'No encontramos talleres',
-                            style: TextStyle(color: ColoresApp.muted),
+                          Text(
+                            context.tr('explorar.sinResultados'),
+                            style: const TextStyle(color: ColoresApp.muted),
                           ),
                         ],
                       ),

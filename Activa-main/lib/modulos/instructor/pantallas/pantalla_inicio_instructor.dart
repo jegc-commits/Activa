@@ -35,7 +35,7 @@ class PantallaInicioInstructor extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '¡Hola, ${i.nombre.split(' ').first}!',
+                      '¡Hola, ${i.nombre.trim().isEmpty ? i.nombreCompleto.trim().isEmpty ? 'instructor' : i.nombreCompleto.split(' ').first : i.nombre.split(' ').first}!',
                       style: const TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
@@ -43,7 +43,9 @@ class PantallaInicioInstructor extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Instructor de ${i.especialidad}',
+                      i.especialidad.trim().isEmpty
+                          ? 'Instructor'
+                          : 'Instructor de ${i.especialidad}',
                       style: const TextStyle(
                         color: Colors.black54,
                         fontSize: 13,
@@ -52,10 +54,13 @@ class PantallaInicioInstructor extends StatelessWidget {
                   ],
                 ),
               ),
-              AvatarActiva(
-                rol: Rol.instructor,
-                iniciales: iniciales(i.nombre, i.apellidoPaterno),
-                radio: 24,
+              GestureDetector(
+                onTap: () => context.go('/instructor/perfil'),
+                child: AvatarActiva(
+                  rol: Rol.instructor,
+                  iniciales: iniciales(i.nombre, i.apellidoPaterno),
+                  radio: 24,
+                ),
               ),
             ],
           ),
