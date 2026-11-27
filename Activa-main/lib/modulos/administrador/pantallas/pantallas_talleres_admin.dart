@@ -46,8 +46,6 @@ class PantallaTalleresAdmin extends StatefulWidget {
 class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
   final _search = TextEditingController();
   int _f = 0; // 0 todas, 1 activas, 2 llenas, 3 inactivas
-  // filtros adicionales que pide el apartado "LISTA DE TALLERES":
-  // categoría, lugar e instructor (el estado ya lo cubren los chips de arriba)
   String? _catFiltro; // clave de categoría, null = todas
   int? _instructorFiltro; // id de instructor, null = todos
 
@@ -55,6 +53,46 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  void _snack(String m) =>
+      ScaffoldMessenger.of(context).showSnackBar(avisoSnack(content: Text(m)));
+
+  Future<void> _alternarActivo(Taller t) async {
+    final nuevo = !t.activo;
+    final ok = await confirmarAccion(
+      context,
+      titulo: nuevo ? '¿Reactivar taller?' : '¿Desactivar taller?',
+      mensaje: nuevo
+          ? '${t.nombre} volverá a estar visible para los alumnos.'
+          : '${t.nombre} dejará de mostrarse a los alumnos. '
+                'Podrás reactivarlo cuando quieras.',
+      textoConfirmar: nuevo ? 'Reactivar' : 'Desactivar',
+      icono: nuevo ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+    );
+    if (!ok || !mounted) return;
+    final err = await context.read<EstadoApp>().cambiarActivoTaller(
+      t.id,
+      nuevo,
+    );
+    if (!mounted) return;
+    _snack(err ?? (nuevo ? 'Taller reactivado' : 'Taller desactivado'));
+  }
+
+  Future<void> _eliminar(Taller t) async {
+    final ok = await confirmarAccion(
+      context,
+      titulo: '¿Eliminar taller?',
+      mensaje:
+          'Se eliminará ${t.nombre} con su historial. Esta acción no se '
+          'puede deshacer.',
+      textoConfirmar: 'Eliminar',
+      icono: Icons.delete_outline_rounded,
+    );
+    if (!ok || !mounted) return;
+    final err = await context.read<EstadoApp>().eliminarTaller(t.id);
+    if (!mounted) return;
+    _snack(err ?? 'Taller eliminado');
   }
 
   @override
@@ -81,7 +119,7 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/admin/taller'),
+        onPressed: () => context.push('/admin/taller/nuevo'),
         icon: const Icon(Icons.add),
         label: const Text('Nuevo taller'),
       ),
@@ -99,7 +137,7 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
               ),
             ),
             Text(
-              '${s.talleres.length} talleres registradas',
+              '${s.talleres.length} talleres registrados',
               style: const TextStyle(color: Colors.black54, fontSize: 12),
             ),
             const SizedBox(height: 12),
@@ -179,59 +217,114 @@ class _EstadoPantallaActividadesAdmin extends State<PantallaTalleresAdmin> {
             for (final t in lista)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: TarjetaApp(
-                  onTap: () => context.push('/taller/${t.id}'),
-                  child: Row(
-                    children: [
-                      MiniaturaTaller(t, size: 56),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              t.nombre,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                child: Opacity(
+                  opacity: t.activo ? 1 : 0.6,
+                  child: TarjetaApp(
+                    onTap: () => context.push('/taller/${t.id}'),
+                    child: Row(
+                      children: [
+                        MiniaturaTaller(t, size: 56),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.nombre,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 6,
+                                children: [
+                                  _Etiqueta(
+                                    t.categoria.etiqueta,
+                                    ColoresApp.primary,
+                                  ),
+                                  _Etiqueta(
+                                    t.activo ? 'Activa' : 'Inactiva',
+                                    t.activo ? ColoresApp.teal : Colors.black45,
+                                  ),
+                                  if (!t.hayCupo)
+                                    const _Etiqueta(
+                                      'Cupo lleno',
+                                      ColoresApp.danger,
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${t.instructor.nombreCompleto} · ${t.inscritos}/${t.cupoMaximo}',
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          icon: const Icon(
+                            Icons.more_vert,
+                            color: ColoresApp.primary,
+                          ),
+                          onSelected: (v) {
+                            switch (v) {
+                              case 'editar':
+                                context.push('/admin/taller/${t.id}/editar');
+                              case 'activo':
+                                _alternarActivo(t);
+                              case 'eliminar':
+                                _eliminar(t);
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(
+                              value: 'editar',
+                              child: ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.edit),
+                                title: Text('Editar'),
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Wrap(
-                              spacing: 6,
-                              children: [
-                                _Etiqueta(
-                                  t.categoria.etiqueta,
-                                  ColoresApp.primary,
+                            PopupMenuItem(
+                              value: 'activo',
+                              child: ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  t.activo
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
                                 ),
-                                _Etiqueta(
-                                  t.activo ? 'Activa' : 'Inactiva',
-                                  t.activo ? ColoresApp.teal : Colors.black45,
+                                title: Text(
+                                  t.activo ? 'Desactivar' : 'Reactivar',
                                 ),
-                                if (!t.hayCupo)
-                                  const _Etiqueta(
-                                    'Cupo lleno',
-                                    ColoresApp.danger,
-                                  ),
-                              ],
+                              ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${t.instructor.nombreCompleto} · ${t.inscritos}/${t.cupoMaximo}',
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontSize: 11,
+                            const PopupMenuItem(
+                              value: 'eliminar',
+                              child: ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: ColoresApp.danger,
+                                ),
+                                title: Text(
+                                  'Eliminar',
+                                  style: TextStyle(color: ColoresApp.danger),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const Icon(
-                        Icons.edit,
-                        color: ColoresApp.primary,
-                        size: 20,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -287,8 +380,14 @@ class _EstadoPantallaFormularioActividad
     _cat = t?.categoria.clave;
     _instId = t?.instructor.id;
     if (t != null) _dias.addAll(t.horarios.map((h) => h.dia));
-    _ini = _parse(t?.horarios.first.horaInicio ?? '17:00');
-    _fin = _parse(t?.horarios.first.horaFin ?? '18:30');
+    _ini = _parse(
+      (t != null && t.horarios.isNotEmpty)
+          ? t.horarios.first.horaInicio
+          : '17:00',
+    );
+    _fin = _parse(
+      (t != null && t.horarios.isNotEmpty) ? t.horarios.first.horaFin : '18:30',
+    );
     _activo = t?.activo ?? true;
     _foto = t?.foto;
   }
@@ -455,7 +554,7 @@ class _EstadoPantallaFormularioActividad
     context.pop();
     msg.showSnackBar(
       avisoSnack(
-        content: Text(base == null ? 'taller creado' : 'Cambios guardados'),
+        content: Text(base == null ? 'Taller creado' : 'Cambios guardados'),
       ),
     );
   }
@@ -470,7 +569,7 @@ class _EstadoPantallaFormularioActividad
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _label('Foto de la taller'),
+        _label('Foto del taller'),
         GestureDetector(
           onTap: _elegirFoto,
           child: Container(
@@ -520,7 +619,7 @@ class _EstadoPantallaFormularioActividad
                   ),
           ),
         ),
-        _label('Nombre de el taller'),
+        _label('Nombre del taller'),
         TextFormField(
           controller: _nombre,
           textCapitalization: TextCapitalization.sentences,
@@ -676,7 +775,7 @@ class _EstadoPantallaFormularioActividad
     final s = context.watch<EstadoApp>();
     return EstructuraSubpantalla(
       title: _edit == null ? 'Nuevo taller' : 'Editar taller',
-      fallback: '/admin/actividades',
+      fallback: '/admin/talleres',
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [

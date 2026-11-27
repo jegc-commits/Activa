@@ -108,13 +108,15 @@ class EstadoApp extends ChangeNotifier {
           (d) => d.index == _aInt(r['dia']),
           orElse: () => Dia.lunes,
         );
-        horariosPorTaller.putIfAbsent(tId, () => []).add(
-          Horario(
-            dia,
-            (r['hora_inicio'] ?? '').toString(),
-            (r['hora_fin'] ?? '').toString(),
-          ),
-        );
+        horariosPorTaller
+            .putIfAbsent(tId, () => [])
+            .add(
+              Horario(
+                dia,
+                (r['hora_inicio'] ?? '').toString(),
+                (r['hora_fin'] ?? '').toString(),
+              ),
+            );
       }
       final aprendizajesPorTaller = <int, List<String>>{};
       for (final r in List<Map<String, dynamic>>.from(results[12])) {
@@ -567,10 +569,7 @@ class EstadoApp extends ChangeNotifier {
     final enUso = _talleres.any((t) => t.categoria.id == id);
     try {
       if (enUso) {
-        await _db
-            .from('categorias')
-            .update({'activa': false})
-            .eq('id', id);
+        await _db.from('categorias').update({'activa': false}).eq('id', id);
         _categorias[idx] = _categorias[idx].copyWith(activa: false);
       } else {
         await _db.from('categorias').delete().eq('id', id);
@@ -610,9 +609,7 @@ class EstadoApp extends ChangeNotifier {
     final limpio = nuevo.trim();
     if (limpio.isEmpty) return 'Error: escribe el nombre de la especialidad';
     if (limpio.toLowerCase() == anterior.toLowerCase()) return null;
-    if (_especialidades.any(
-      (e) => e.toLowerCase() == limpio.toLowerCase(),
-    )) {
+    if (_especialidades.any((e) => e.toLowerCase() == limpio.toLowerCase())) {
       return 'Error: esa especialidad ya existe';
     }
     try {
@@ -987,8 +984,9 @@ class EstadoApp extends ChangeNotifier {
 
   /// Todos los instructores viven en la tabla `usuarios` (rol instructor).
   List<Instructor> get instructores => List.unmodifiable(
-    (_almacen?.instructores ?? const <CuentaGuardada>[])
-        .map((c) => c.aInstructor()),
+    (_almacen?.instructores ?? const <CuentaGuardada>[]).map(
+      (c) => c.aInstructor(),
+    ),
   );
 
   /// Todos los alumnos viven en la tabla `usuarios` (rol alumno).
@@ -1031,11 +1029,7 @@ class EstadoApp extends ChangeNotifier {
         'inscritos': t.inscritos,
       };
       if (esNuevo) {
-        final fila = await _db
-            .from('talleres')
-            .insert(datos)
-            .select()
-            .single();
+        final fila = await _db.from('talleres').insert(datos).select().single();
         guardado = t.copyWith(id: _aInt(fila['id'], defecto: t.id));
       } else {
         await _db.from('talleres').update(datos).eq('id', t.id);
@@ -1102,6 +1096,76 @@ class EstadoApp extends ChangeNotifier {
     return null;
   }
 
+  /// Activa o desactiva un taller. Devuelve el error o null.
+  Future<String?> cambiarActivoTaller(int id, bool activo) async {
+    final idx = _talleres.indexWhere((t) => t.id == id);
+    if (idx < 0) return 'Error: no se encontró el taller';
+    if (_talleres[idx].activo == activo) return null;
+    try {
+      await _db.from('talleres').update({'activo': activo}).eq('id', id);
+    } catch (e) {
+      debugPrint('ACTIVA: no se pudo cambiar el estado del taller: $e');
+      return 'Error: no se pudo guardar el cambio';
+    }
+    final nuevo = _talleres[idx].copyWith(activo: activo);
+    _talleres[idx] = nuevo;
+    for (var k = 0; k < _inscripciones.length; k++) {
+      if (_inscripciones[k].taller.id == id) {
+        _inscripciones[k] = _inscripciones[k].copyWith(taller: nuevo);
+      }
+    }
+    notifyListeners();
+    return null;
+  }
+
+  /// Elimina un taller. Se niega si tiene alumnos inscritos activos.
+  Future<String?> eliminarTaller(int id) async {
+    final idx = _talleres.indexWhere((t) => t.id == id);
+    if (idx < 0) return 'Error: no se encontró el taller';
+    final activas = _inscripciones.where(
+      (i) => i.taller.id == id && i.estado == EstadoInscripcion.activa,
+    );
+    if (activas.isNotEmpty) {
+      return 'Error: tiene ${activas.length} alumno(s) inscrito(s). '
+          'Mejor desactívalo.';
+    }
+    try {
+      // los avisos usan SET NULL; los borramos para no dejar avisos huérfanos
+      await _db.from('avisos').delete().eq('taller_id', id);
+      await _db.from('talleres').delete().eq('id', id);
+    } catch (e) {
+      debugPrint('ACTIVA: no se pudo eliminar el taller: $e');
+      return 'Error: no se pudo eliminar el taller';
+    }
+    final folios = _inscripciones
+        .where((i) => i.taller.id == id)
+        .map((i) => i.folio)
+        .toList();
+    _inscripciones.removeWhere((i) => i.taller.id == id);
+    for (final f in folios) {
+      _horas.remove(f);
+    }
+    final avisosIds = _avisos
+        .where((a) => a.tallerId == id)
+        .map((a) => a.id)
+        .toSet();
+    _avisos.removeWhere((a) => a.tallerId == id);
+    _avisosLeidos.removeAll(avisosIds);
+    _avisosArchivados.removeAll(avisosIds);
+    _talleres.removeAt(idx);
+    _favoritos.remove(id);
+    _bajas.remove(id);
+    _chats.remove(id);
+    _chatsAnclados.remove(id);
+    _fondosChat.remove(id);
+    _roster.remove(id);
+    _asistencias.removeWhere((k, _) => int.tryParse(k.split('|').first) == id);
+    _encuestas.removeWhere((e) => e.tallerId == id);
+    _solicitudes.removeWhere((s) => s.tallerId == id);
+    notifyListeners();
+    return null;
+  }
+
   // ================= INSTRUCTORES: cuentas y asignaciones =================
   bool existeCorreoInstructor(String c) =>
       (_almacen?.instructores ?? const <CuentaGuardada>[]).any(
@@ -1111,8 +1175,7 @@ class EstadoApp extends ChangeNotifier {
   bool existeInstructor(String n, String p, String m) =>
       (_almacen?.instructores ?? const <CuentaGuardada>[]).any(
         (i) =>
-            i.nombreCompleto.toLowerCase() ==
-            '$n $p $m'.trim().toLowerCase(),
+            i.nombreCompleto.toLowerCase() == '$n $p $m'.trim().toLowerCase(),
       );
 
   bool tieneCuentaInstructor(int id) {
@@ -1741,11 +1804,14 @@ class EstadoApp extends ChangeNotifier {
       cupoExtra: aprobar ? cupoExtra : 0,
     );
     _guardar(
-      (db) => db.from('solicitudes').update({
-        'estado': _solicitudes[i].estado.name,
-        'respuesta': _solicitudes[i].respuesta,
-        'cupo_extra': _solicitudes[i].cupoExtra,
-      }).eq('id', id),
+      (db) => db
+          .from('solicitudes')
+          .update({
+            'estado': _solicitudes[i].estado.name,
+            'respuesta': _solicitudes[i].respuesta,
+            'cupo_extra': _solicitudes[i].cupoExtra,
+          })
+          .eq('id', id),
     );
     notifyListeners();
   }
