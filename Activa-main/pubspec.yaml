@@ -62,6 +62,8 @@ flutter:
     - assets/images/
     - assets/images/talleres/
     - assets/sounds/
+    - assets/fuentes/
+    
   # Tipografía Century. Por ahora son archivos libres parecidos a Century Gothic.
   # Para usar la original, copia GOTHIC.TTF y GOTHICB.TTF de C:\Windows\Fonts
   # a assets/fonts/ y cambia los nombres de archivo aquí abajo.

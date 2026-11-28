@@ -252,6 +252,8 @@ class AlmacenCuentas {
       _cuentas.where((c) => c.rol == Rol.instructor).toList();
   List<CuentaGuardada> get alumnos =>
       _cuentas.where((c) => c.rol == Rol.alumno).toList();
+  List<CuentaGuardada> get administradores =>
+      _cuentas.where((c) => c.rol == Rol.admin).toList();
 
   int nuevoId() => _siguienteId++;
 

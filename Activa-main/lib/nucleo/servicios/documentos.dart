@@ -37,10 +37,16 @@ Future<void> descargarPdfConfirmando(
   if (!ok || !context.mounted) return;
   final m = ScaffoldMessenger.of(context);
   try {
+    Documentos.ultimaRuta = null;
     await generar();
+    final ruta = Documentos.ultimaRuta;
     m.showSnackBar(
       avisoSnack(
-        content: const Text('Comprobante descargado'),
+        content: Text(
+          (ruta == null || ruta.isEmpty)
+              ? 'Comprobante descargado'
+              : 'Guardado en: $ruta',
+        ),
         tipo: TipoToast.exito,
       ),
     );
@@ -59,9 +65,30 @@ class Documentos {
   static const _azul = PdfColor.fromInt(0xFF1B78E2);
   static const _navy = PdfColor.fromInt(0xFF0A3175);
 
-  // la fuente base del PDF no trae algunos símbolos, los cambiamos
-  static String _l(String s) =>
-      s.replaceAll('–', '-').replaceAll('—', '-').replaceAll('’', "'");
+  /// Ruta donde quedó el último archivo guardado (la muestra el aviso).
+  static String? ultimaRuta;
+
+  // Fuente con soporte Unicode (acentos, ñ, ¿, ·, etc.)
+  static pw.ThemeData? _tema;
+
+  static Future<pw.ThemeData> _cargarTema() async {
+    if (_tema != null) return _tema!;
+    final regular = pw.Font.ttf(
+      await rootBundle.load('assets/fuentes/Roboto-Regular.ttf'),
+    );
+    final bold = pw.Font.ttf(
+      await rootBundle.load('assets/fuentes/Roboto-Bold.ttf'),
+    );
+    return _tema = pw.ThemeData.withFont(
+      base: regular,
+      bold: bold,
+      italic: regular,
+      boldItalic: bold,
+    );
+  }
+
+  static Future<pw.Document> _nuevoPdf() async =>
+      pw.Document(theme: await _cargarTema());
 
   static pw.Widget _txt(
     String s, {
@@ -69,7 +96,7 @@ class Documentos {
     bool bold = false,
     PdfColor color = PdfColors.black,
   }) => pw.Text(
-    _l(s),
+    s,
     style: pw.TextStyle(
       fontSize: size,
       fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
@@ -125,17 +152,21 @@ class Documentos {
     String nombre,
     String ext,
     MimeType tipo,
-  ) => FileSaver.instance.saveFile(
-    name: nombre,
-    bytes: bytes,
-    fileExtension: ext,
-    mimeType: tipo,
-  );
+  ) async {
+    final ruta = await FileSaver.instance.saveFile(
+      name: nombre,
+      bytes: bytes,
+      fileExtension: ext,
+      mimeType: tipo,
+    );
+    ultimaRuta = ruta;
+    debugPrint('ACTIVA: archivo guardado en $ruta');
+  }
 
   // ───────── PDF: comprobante de inscripción ─────────
   static Future<void> comprobanteInscripcion(Inscripcion i) async {
     final t = i.taller;
-    final pdf = pw.Document();
+    final pdf = await _nuevoPdf();
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -159,6 +190,8 @@ class Documentos {
               children: [
                 pw.BarcodeWidget(
                   barcode: pw.Barcode.qrCode(),
+                  drawText: false,
+                  textStyle: pw.TextStyle(font: _tema!.defaultTextStyle.font),
                   data: i.folio,
                   width: 100,
                   height: 100,
@@ -206,7 +239,7 @@ class Documentos {
     final titulo = finalDoc
         ? 'Constancia final de sesiones'
         : 'Constancia parcial de sesiones';
-    final pdf = pw.Document();
+    final pdf = await _nuevoPdf();
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -277,7 +310,7 @@ class Documentos {
     const titulo = 'Reporte de inscripciones por actividad';
 
     if (formato == 'PDF') {
-      final pdf = pw.Document();
+      final pdf = await _nuevoPdf();
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,

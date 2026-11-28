@@ -40,6 +40,7 @@ import '../../modulos/instructor/pantallas/pantalla_solicitudes_instructor.dart'
 import '../../modulos/administrador/pantallas/pantalla_solicitudes_admin.dart';
 import '../../modulos/alumno/pantallas/pantalla_acerca_de.dart';
 import '../../modulos/administrador/pantallas/pantallas_instructores_admin.dart';
+import '../../modulos/administrador/pantallas/pantallas_administradores_admin.dart';
 
 // 👇 AQUÍ ESTÁ LA VARIABLE QUE TU APLICACION ESTÁ BUSCANDO
 /// Sesión activa, para que el enrutador pueda bloquear las rutas /admin
@@ -387,6 +388,20 @@ final enrutadorApp = GoRouter(
     GoRoute(
       path: '/admin/categorias',
       builder: (_, _) => const PantallaCategorias(),
+    ),
+    GoRoute(
+      path: '/admin/administradores',
+      builder: (_, _) => const PantallaAdministradores(),
+    ),
+    GoRoute(
+      path: '/admin/administradores/nuevo',
+      builder: (_, _) => const PantallaFormularioAdministrador(),
+    ),
+    GoRoute(
+      path: '/admin/administradores/:id/editar',
+      builder: (_, s) => PantallaFormularioAdministrador(
+        administradorId: int.parse(s.pathParameters['id']!),
+      ),
     ),
   ],
 );

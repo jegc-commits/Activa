@@ -178,22 +178,31 @@ class EstadoApp extends ChangeNotifier {
       if (maxTallerId >= _tallerSeq) _tallerSeq = maxTallerId + 1;
 
       // Inscripciones
+      // Inscripciones
       final insRows = List<Map<String, dynamic>>.from(results[3]);
       final tallerPorIdMap = {for (final t in _talleres) t.id: t};
       final alumnoPorIdMap = {for (final a in todosAlumnos) a.id: a};
       _inscripciones.clear();
       _horas.clear();
       for (final r in insRows) {
+        final folio = (r['folio'] ?? '').toString();
+
+        // El contador se actualiza con TODOS los folios, aunque el alumno
+        // o el taller ya no existan.
+        final m = RegExp(r'-(\d+)$').firstMatch(folio);
+        final n = m == null ? null : int.tryParse(m.group(1)!);
+        if (n != null && n >= _seq) _seq = n + 1;
+
         final tId = _aInt(r['taller_id']);
         final aId = _aInt(r['alumno_id']);
         final t = tallerPorIdMap[tId];
         final al = alumnoPorIdMap[aId];
         if (t == null || al == null) continue;
+
         final estadoStr = (r['estado'] ?? 'activa').toString();
         final estado = estadoStr == 'cancelada'
             ? EstadoInscripcion.cancelada
             : EstadoInscripcion.activa;
-        final folio = (r['folio'] ?? '').toString();
         _inscripciones.add(
           Inscripcion(
             folio: folio,
@@ -206,9 +215,6 @@ class EstadoApp extends ChangeNotifier {
           ),
         );
         _horas[folio] = _aInt(r['horas']);
-        final m = RegExp(r'-(\d+)$').firstMatch(folio);
-        final n = m == null ? null : int.tryParse(m.group(1)!);
-        if (n != null && n >= _seq) _seq = n + 1;
       }
 
       // Favoritos
@@ -994,6 +1000,11 @@ class EstadoApp extends ChangeNotifier {
     (_almacen?.alumnos ?? const <CuentaGuardada>[]).map((c) => c.aAlumno()),
   );
 
+  /// Cuentas con rol de administrador (incluye a la persona que tiene la
+  /// sesión abierta, para poder marcar "Tú" en la pantalla de administración).
+  List<CuentaGuardada> get administradores =>
+      List.unmodifiable(_almacen?.administradores ?? const <CuentaGuardada>[]);
+
   List<({String tipo, String formato, DateTime fecha})> get reportes =>
       List.unmodifiable(_reportes);
 
@@ -1314,6 +1325,17 @@ class EstadoApp extends ChangeNotifier {
     return null;
   }
 
+  /// Revisa la contraseña de un administrador (para confirmar acciones).
+  Future<bool> verificarContrasenaAdministrador(
+    int id,
+    String contrasena,
+  ) async {
+    final a = _almacen;
+    final c = a?.porId(id);
+    if (a == null || c == null || c.rol != Rol.admin) return false;
+    return a.verificar(c, contrasena);
+  }
+
   /// Pone una contraseña temporal nueva (vuelve a pedir el cambio al entrar).
   Future<String?> restablecerContrasenaInstructor(
     int id,
@@ -1511,6 +1533,166 @@ class EstadoApp extends ChangeNotifier {
     }
     _guardar((db) => db.from('inscripciones').delete().eq('alumno_id', id));
     if (alumno.id == id) alumno = alumnoVacio;
+    notifyListeners();
+    return null;
+  }
+
+  // ================= ADMINISTRADORES: CRUD del administrador =================
+
+  static final _correoValido = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  /// Da de alta a otro administrador. La contraseña que se escribe queda
+  /// como temporal: al entrar por primera vez se le pide cambiarla.
+  Future<({CuentaGuardada? cuenta, String? error})> crearAdministrador({
+    required String nombre,
+    required String paterno,
+    String materno = '',
+    required String correo,
+    required String contrasena,
+    String telefono = '',
+  }) async {
+    final a = _almacen;
+    if (a == null) {
+      return (cuenta: null, error: 'Error: no se pudo abrir el almacenamiento');
+    }
+    final mail = correo.trim().toLowerCase();
+    if (mail.isEmpty)
+      return (cuenta: null, error: 'Error: el correo es obligatorio');
+    if (!_correoValido.hasMatch(mail)) {
+      return (cuenta: null, error: 'Error: escribe un correo válido');
+    }
+    if (contrasena.trim().length < 8) {
+      return (
+        cuenta: null,
+        error: 'Error: la contraseña debe tener al menos 8 caracteres',
+      );
+    }
+    if (a.correoTomado(mail)) {
+      return (cuenta: null, error: 'Error: ese correo ya está registrado');
+    }
+    final c = CuentaGuardada(
+      id: 0,
+      rol: Rol.admin,
+      usuario: a.usuarioLibre(CuentaGuardada.usuarioDesdeCorreo(mail)),
+      correo: mail,
+      nombre: nombre.trim(),
+      apellidoPaterno: paterno.trim(),
+      apellidoMaterno: materno.trim(),
+      telefono: telefono.trim(),
+    );
+    a.ponerContrasena(c, contrasena.trim(), temporal: true);
+    final real = await a.agregar(c);
+    if (real == null) {
+      return (cuenta: null, error: 'Error: no se pudo guardar la cuenta');
+    }
+    notifyListeners();
+    return (cuenta: real, error: null);
+  }
+
+  /// Edita los datos de otro administrador. Devuelve el error o null.
+  Future<String?> editarAdministrador(
+    int id, {
+    required String nombre,
+    required String paterno,
+    String materno = '',
+    required String correo,
+    String telefono = '',
+  }) async {
+    final a = _almacen;
+    final c = a?.porId(id);
+    if (a == null || c == null || c.rol != Rol.admin) {
+      return 'Error: no se encontró al administrador';
+    }
+    final mail = correo.trim().toLowerCase();
+    if (!_correoValido.hasMatch(mail)) {
+      return 'Error: escribe un correo válido';
+    }
+    if (a.correoTomado(mail, excepto: id)) {
+      return 'Error: ese correo ya está registrado';
+    }
+    c.nombre = nombre.trim();
+    c.apellidoPaterno = paterno.trim();
+    c.apellidoMaterno = materno.trim();
+    c.correo = mail;
+    c.telefono = telefono.trim();
+    if (!await a.actualizar(c)) {
+      return 'Error: no se pudieron guardar los cambios';
+    }
+    if (admin.id == id) {
+      admin = Administrador(
+        id: c.id,
+        nombre: c.nombre,
+        apellidoPaterno: c.apellidoPaterno,
+        apellidoMaterno: c.apellidoMaterno,
+        correo: c.correo,
+        cargo: admin.cargo,
+      );
+    }
+    notifyListeners();
+    return null;
+  }
+
+  /// Activa o desactiva a otro administrador. No permite dejar la app sin
+  /// ningún administrador activo ni desactivar la cuenta con la que se entró.
+  Future<String?> cambiarActivoAdministrador(int id, bool activo) async {
+    final a = _almacen;
+    final c = a?.porId(id);
+    if (a == null || c == null || c.rol != Rol.admin) {
+      return 'Error: no se encontró al administrador';
+    }
+    if (c.activo == activo) return null;
+    if (!activo) {
+      if (id == admin.id) {
+        return 'Error: no puedes desactivar tu propia cuenta';
+      }
+      final otrosActivos = a.administradores
+          .where((x) => x.activo && x.id != id)
+          .length;
+      if (otrosActivos == 0) {
+        return 'Error: debe quedar al menos un administrador activo';
+      }
+    }
+    c.activo = activo;
+    if (!await a.actualizar(c)) {
+      return 'Error: no se pudo guardar el cambio';
+    }
+    notifyListeners();
+    return null;
+  }
+
+  /// Pone una contraseña temporal nueva al administrador.
+  Future<String?> restablecerContrasenaAdministrador(
+    int id,
+    String temporal,
+  ) async {
+    final a = _almacen;
+    final c = a?.porId(id);
+    if (a == null || c == null || c.rol != Rol.admin) {
+      return 'Error: no se encontró al administrador';
+    }
+    a.ponerContrasena(c, temporal, temporal: true);
+    return await a.actualizar(c)
+        ? null
+        : 'Error: no se pudo guardar la contraseña';
+  }
+
+  /// Elimina a otro administrador. No permite eliminarse a sí mismo ni dejar
+  /// la app sin administradores.
+  Future<String?> eliminarAdministrador(int id) async {
+    final a = _almacen;
+    final c = a?.porId(id);
+    if (a == null || c == null || c.rol != Rol.admin) {
+      return 'Error: no se encontró al administrador';
+    }
+    if (id == admin.id) {
+      return 'Error: no puedes eliminar tu propia cuenta';
+    }
+    if (a.administradores.length <= 1) {
+      return 'Error: debe quedar al menos un administrador';
+    }
+    if (!await a.eliminar(c)) {
+      return 'Error: no se pudo eliminar al administrador';
+    }
     notifyListeners();
     return null;
   }

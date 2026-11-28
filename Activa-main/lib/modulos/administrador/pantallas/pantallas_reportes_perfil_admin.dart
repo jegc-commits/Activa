@@ -397,6 +397,11 @@ class PantallaPerfilAdmin extends StatelessWidget {
                     () => context.push('/admin/instructores'),
                   ),
                   _item(
+                    Icons.admin_panel_settings_rounded,
+                    'Administradores',
+                    () => context.push('/admin/administradores'),
+                  ),
+                  _item(
                     Icons.calendar_today,
                     'Periodo escolar',
                     () => context.push('/admin/periodo'),

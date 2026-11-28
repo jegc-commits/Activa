@@ -134,6 +134,22 @@ class PantallaInicioAdmin extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _action(
+                Icons.groups,
+                'Alumnos',
+                () => context.go('/admin/alumnos'),
+              ),
+              const SizedBox(width: 10),
+              _action(
+                Icons.admin_panel_settings_rounded,
+                'Administradores',
+                () => context.push('/admin/administradores'),
+              ),
+            ],
+          ),
           if (casi.isNotEmpty) ...[
             const SizedBox(height: 20),
             const Text(
