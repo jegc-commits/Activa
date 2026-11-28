@@ -349,7 +349,7 @@ class _EstadoPantallaFormularioActividad
   final _form1 = GlobalKey<FormState>();
   final _form2 = GlobalKey<FormState>();
   late final Taller? _edit;
-  late final TextEditingController _nombre, _desc, _lugar, _cupo, _horas;
+  late final TextEditingController _nombre, _desc, _lugar, _cupo;
   String? _cat; // clave de categoría
   int? _instId;
   final Set<Dia> _dias = {};
@@ -376,7 +376,6 @@ class _EstadoPantallaFormularioActividad
     _desc = TextEditingController(text: t?.descripcion ?? '');
     _lugar = TextEditingController(text: t?.lugar ?? '');
     _cupo = TextEditingController(text: t == null ? '' : '${t.cupoMaximo}');
-    _horas = TextEditingController(text: '${t?.horasOtorga ?? 60}');
     _cat = t?.categoria.clave;
     _instId = t?.instructor.id;
     if (t != null) _dias.addAll(t.horarios.map((h) => h.dia));
@@ -394,7 +393,7 @@ class _EstadoPantallaFormularioActividad
 
   @override
   void dispose() {
-    for (final c in [_nombre, _desc, _lugar, _cupo, _horas]) {
+    for (final c in [_nombre, _desc, _lugar, _cupo]) {
       c.dispose();
     }
     super.dispose();
@@ -490,7 +489,9 @@ class _EstadoPantallaFormularioActividad
     ];
     final base = _edit;
     final cupo = int.parse(_cupo.text);
-    final horas = int.parse(_horas.text);
+    // "Horas que otorga" ya no se usa en ningún lado: el avance de los
+    // alumnos ahora se mide por sesiones asistidas, no por horas. Se deja
+    // en 0 para que quede claro que el campo no se usa.
     final t = base == null
         ? Taller(
             id: s.siguienteTallerId,
@@ -499,7 +500,7 @@ class _EstadoPantallaFormularioActividad
             categoria: cat,
             lugar: _lugar.text.trim(),
             cupoMaximo: cupo,
-            horasOtorga: horas,
+            horasOtorga: 0,
             activo: _activo,
             instructor: inst,
             horarios: horarios,
@@ -512,7 +513,6 @@ class _EstadoPantallaFormularioActividad
             categoria: cat,
             lugar: _lugar.text.trim(),
             cupoMaximo: cupo,
-            horasOtorga: horas,
             activo: _activo,
             instructor: inst,
             horarios: horarios,
@@ -736,16 +736,6 @@ class _EstadoPantallaFormularioActividad
             final ins = _edit?.inscritos ?? 0;
             if (n < ins) return 'Ya hay $ins inscritos';
             return null;
-          },
-        ),
-        _label('Horas que otorga'),
-        TextFormField(
-          controller: _horas,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(prefixIcon: Icon(Icons.timer)),
-          validator: (v) {
-            final n = int.tryParse(v ?? '');
-            return (n == null || n < 1) ? 'Escribe un número válido' : null;
           },
         ),
         SwitchListTile(

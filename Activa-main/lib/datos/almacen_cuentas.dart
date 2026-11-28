@@ -226,6 +226,27 @@ class AlmacenCuentas {
     }
   }
 
+  /// Vuelve a leer las cuentas desde Supabase (por ejemplo, después de un
+  /// borrado masivo) para que la lista en memoria quede sincronizada.
+  Future<void> recargar() async {
+    try {
+      final filas = await _db
+          .from('usuarios')
+          .select()
+          .order('id', ascending: true)
+          .timeout(const Duration(seconds: 8));
+      final lista = List<Map<String, dynamic>>.from(
+        filas,
+      ).map(CuentaGuardada.desdeMapa).toList();
+      _cuentas
+        ..clear()
+        ..addAll(lista);
+      _siguienteId = lista.fold<int>(0, (a, c) => c.id > a ? c.id : a) + 1;
+    } catch (e) {
+      debugPrint('No se pudieron recargar las cuentas desde Supabase: $e');
+    }
+  }
+
   List<CuentaGuardada> get cuentas => List.unmodifiable(_cuentas);
   List<CuentaGuardada> get instructores =>
       _cuentas.where((c) => c.rol == Rol.instructor).toList();

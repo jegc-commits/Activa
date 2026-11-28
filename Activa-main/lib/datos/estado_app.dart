@@ -1515,6 +1515,50 @@ class EstadoApp extends ChangeNotifier {
     return null;
   }
 
+  /// Borra de verdad todo lo que no sea catálogo (categorías/especialidades)
+  /// ni cuentas de administrador: talleres (con todo lo que depende de ellos
+  /// por cascada: horarios, inscripciones, asistencias, roster, avisos,
+  /// chats, encuestas, favoritos, bajas, solicitudes), alumnos, instructores
+  /// y el historial de reportes. Deja la app lista para solo tomar datos
+  /// nuevos. No se puede deshacer.
+  Future<String?> borrarTodoParaLimpiar() async {
+    try {
+      // Los talleres primero: por cascada se llevan todo lo que depende de
+      // ellos (inscripciones, asistencias, roster, avisos, chats, encuestas,
+      // favoritos, bajas, solicitudes de ese taller).
+      await _db.from('talleres').delete().not('id', 'is', null);
+      // Alumnos e instructores; se conservan solo las cuentas admin.
+      await _db.from('usuarios').delete().neq('rol', 'admin');
+      // Historial de reportes generados.
+      await _db.from('reportes').delete().not('fecha', 'is', null);
+    } catch (e) {
+      debugPrint('ACTIVA: no se pudo borrar todo: $e');
+      return 'Error: no se pudo borrar todo en Supabase';
+    }
+
+    _talleres.clear();
+    _inscripciones.clear();
+    _favoritos.clear();
+    _bajas.clear();
+    _horas.clear();
+    _horasOtros.clear();
+    _avisos.clear();
+    _avisosLeidos.clear();
+    _avisosArchivados.clear();
+    _roster.clear();
+    _asistencias.clear();
+    _reportes.clear();
+    _chats.clear();
+    _chatsAnclados.clear();
+    _fondosChat.clear();
+    _encuestas.clear();
+    _solicitudes.clear();
+
+    await _almacen?.recargar();
+    notifyListeners();
+    return null;
+  }
+
   void registrarReporte(String tipo, String formato) {
     final fecha = DateTime.now();
     _reportes.insert(0, (tipo: tipo, formato: formato, fecha: fecha));

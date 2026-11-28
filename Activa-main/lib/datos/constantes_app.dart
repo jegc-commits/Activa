@@ -4,8 +4,8 @@
 // ejemplo). Antes vivían mezclados con los datos simulados.
 // ===================================================================
 
-/// Meta de horas paraescolares por cuatrimestre.
-const metaHoras = 60;
+/// Meta de sesiones paraescolares por cuatrimestre.
+const metaSesiones = 60;
 
 /// Periodo escolar que se muestra en la app, calculado con la fecha actual.
 String get periodoActual {

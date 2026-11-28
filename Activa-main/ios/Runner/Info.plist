@@ -7,6 +7,10 @@
 	<string>ACTIVA usa la cámara para tomar tu foto de perfil y fotos de actividades.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>ACTIVA usa tu galería para elegir fotos.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

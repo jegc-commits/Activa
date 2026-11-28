@@ -5,6 +5,11 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Para que se puedan guardar los PDF/Word/Excel (file_saver) en celulares
+         con Android 9 o anterior. En Android 10+ no hace falta, pero no estorba. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW"/>
@@ -14,7 +19,8 @@
     <application
         android:label="ACTIVA"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

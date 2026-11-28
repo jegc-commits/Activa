@@ -78,8 +78,8 @@ class VistaAlumnosAdmin extends StatelessWidget {
     final s = context.watch<EstadoApp>();
     final alumnos = [...s.todosAlumnos]
       ..sort((a, b) => s.horasAlumno(a).compareTo(s.horasAlumno(b)));
-    final completos = alumnos.where((a) => s.horasAlumno(a) >= metaHoras);
-    final bajos = alumnos.where((a) => s.horasAlumno(a) < metaHoras * 0.3);
+    final completos = alumnos.where((a) => s.horasAlumno(a) >= metaSesiones);
+    final bajos = alumnos.where((a) => s.horasAlumno(a) < metaSesiones * 0.3);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,10 +101,10 @@ class VistaAlumnosAdmin extends StatelessWidget {
             child: Builder(
               builder: (_) {
                 final h = s.horasAlumno(a);
-                final p = (h / metaHoras).clamp(0.0, 1.0);
-                final (estado, color) = h >= metaHoras
+                final p = (h / metaSesiones).clamp(0.0, 1.0);
+                final (estado, color) = h >= metaSesiones
                     ? ('Completó', ColoresApp.teal)
-                    : h >= metaHoras * 0.3
+                    : h >= metaSesiones * 0.3
                     ? ('En progreso', ColoresApp.primary)
                     : ('Bajo avance', ColoresApp.warning);
                 return TarjetaApp(
@@ -132,7 +132,8 @@ class VistaAlumnosAdmin extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        'Control: ${a.numeroControl} · $h / $metaHoras h',
+                        'Control: ${a.numeroControl} · $h / $metaSesiones '
+                        '${metaSesiones == 1 ? 'sesión' : 'sesiones'}',
                         style: const TextStyle(
                           color: Colors.black54,
                           fontSize: 12,

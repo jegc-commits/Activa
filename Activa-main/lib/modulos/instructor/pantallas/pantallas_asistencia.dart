@@ -195,8 +195,8 @@ class _EstadoPantallaPasarLista extends State<PantallaPasarLista> {
                           fontSize: 12,
                         ),
                       ),
-                      Text(
-                        'Cada asistencia suma ${t.horasPorSesion} h',
+                      const Text(
+                        'Cada asistencia cuenta como 1 sesión',
                         style: const TextStyle(
                           color: Colors.black45,
                           fontSize: 11,

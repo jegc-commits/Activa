@@ -44,10 +44,11 @@ Future<void> descargarPdfConfirmando(
         tipo: TipoToast.exito,
       ),
     );
-  } catch (_) {
+  } catch (e) {
+    debugPrint('Error al descargar PDF: $e');
     m.showSnackBar(
       avisoSnack(
-        content: const Text('No se pudo generar el PDF'),
+        content: Text('No se pudo generar el PDF: $e'),
         tipo: TipoToast.error,
       ),
     );
@@ -127,7 +128,7 @@ class Documentos {
   ) => FileSaver.instance.saveFile(
     name: nombre,
     bytes: bytes,
-    ext: ext,
+    fileExtension: ext,
     mimeType: tipo,
   );
 

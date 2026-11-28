@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../modelos/enums.dart';
-import '../../../datos/bd/base_datos.dart';
 import '../../../nucleo/componentes/avatar_activa.dart';
 import '../../../nucleo/componentes/avisos.dart';
 import '../../../nucleo/componentes/dialogo_confirmar.dart';
@@ -38,10 +37,11 @@ class _EstadoReportes extends State<PantallaReportes> {
           tipo: TipoToast.exito,
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error al generar reporte $formato: $e');
       m.showSnackBar(
         avisoSnack(
-          content: const Text('No se pudo generar el reporte'),
+          content: Text('No se pudo generar el reporte: $e'),
           tipo: TipoToast.error,
         ),
       );
@@ -316,33 +316,25 @@ class PantallaPerfilAdmin extends StatelessWidget {
       context,
       titulo: '¿Borrar todos los datos?',
       mensaje:
-          'Esto elimina de verdad TODO: talleres, instructores, alumnos, '
-          'inscripciones, chats y avisos. No se puede deshacer. Úsalo solo '
-          'para dejar la app limpia antes de entregarla.',
+          'Esto elimina de verdad TODO en la nube (Supabase): talleres, '
+          'instructores, alumnos, inscripciones, chats, avisos, encuestas y '
+          'reportes. Solo se conservan las cuentas de administrador y el '
+          'catálogo (categorías/especialidades). No se puede deshacer.',
       textoConfirmar: 'Sí, borrar todo',
       icono: Icons.delete_forever_rounded,
       peligro: true,
     );
     if (!ok || !context.mounted) return;
-    await BaseDatos.instancia.reiniciar();
-    if (!context.mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Listo'),
-        content: const Text(
-          'Los datos se borraron. Ahora cierra la app por completo '
-          '(no solo minimizarla) y vuelve a abrirla para que arranque limpia.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Entendido'),
-          ),
-        ],
+    final msg = ScaffoldMessenger.of(context);
+    final error = await context.read<EstadoApp>().borrarTodoParaLimpiar();
+    if (error != null) {
+      msg.showSnackBar(avisoSnack(content: Text(error), tipo: TipoToast.error));
+      return;
+    }
+    msg.showSnackBar(
+      avisoSnack(
+        content: const Text('Listo: ya quedó todo limpio.'),
+        tipo: TipoToast.exito,
       ),
     );
   }
